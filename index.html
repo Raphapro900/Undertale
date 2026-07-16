@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undertale · Frisk</title>
+    <style>
+        @font-face {
+            font-family: 'Determination Mono';
+            src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts/patched-fonts/UbuntuMono/Regular/complete/Ubuntu%20Mono%20Nerd%20Font%20Complete%20Mono.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0a0a0a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Determination Mono', monospace;
+        }
+        #game-wrapper {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 4px solid #4a4a4a;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            background-color: #1a1a2e;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+            background: #1a1a2e;
+            cursor: default;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        #pause-menu {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #f0e6d0;
+            border-radius: 16px;
+            padding: 24px 36px;
+            color: #f0e6d0;
+            font-size: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 260px;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
+            text-shadow: 2px 2px 0 #3a2a1a;
+        }
+        #pause-menu.active {
+            display: flex;
+        }
+        #pause-menu .title {
+            font-size: 28px;
+            text-align: center;
+            border-bottom: 2px solid #b8a080;
+            padding-bottom: 10px;
+            margin-bottom: 6px;
+            letter-spacing: 2px;
+            color: #ffd78a;
+        }
+        .menu-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border-bottom: 1px solid #3a2a1a;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .menu-row:hover {
+            background: #3a2a1a;
+            color: #ffd78a;
+        }
+        .menu-row .key-hint {
+            color: #8a7a6a;
+            font-size: 14px;
+        }
+        #exit-prompt {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #f0e6d0;
+            font-size: 28px;
+            text-shadow: 2px 2px 0 #1a0a0a;
+            letter-spacing: 2px;
+            background: rgba(0,0,0,0.4);
+            padding: 4px 14px;
+            border-radius: 30px;
+            backdrop-filter: blur(2px);
+            display: none;
+            pointer-events: none;
+            border: 1px solid #b8a080;
+        }
+        #text-box {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 640px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #f0e6d0;
+            border-radius: 20px;
+            padding: 20px 28px;
+            color: #f0e6d0;
+            font-size: 24px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+            display: none;
+            pointer-events: auto;
+            text-shadow: 2px 2px 0 #1a0a0a;
+            letter-spacing: 0.5px;
+            min-height: 80px;
+            align-items: center;
+        }
+        #text-box .text-content {
+            width: 100%;
+            word-break: break-word;
+        }
+        #text-box .skip-hint {
+            position: absolute;
+            right: 20px;
+            bottom: 10px;
+            font-size: 14px;
+            color: #8a7a6a;
+        }
+        #text-box.active {
+            display: flex;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+<div id="game-wrapper">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui-layer">
+        <div id="pause-menu">
+            <div class="title">☀ PAUSA</div>
+            <div class="menu-row">Idioma <span class="key-hint">(ES)</span></div>
+            <div class="menu-row">Volumen <span class="key-hint">🔊</span></div>
+            <div class="menu-row">Diálogos <span class="key-hint">📖</span></div>
+            <div class="menu-row">SFX <span class="key-hint">🔘</span></div>
+            <div class="menu-row">Activar WASD <span class="key-hint">[W A S D]</span></div>
+        </div>
+        <div id="exit-prompt">Saliendo<span id="exitDots">.</span></div>
+        <div id="text-box">
+            <div class="text-content" id="dialogueText">Hola, soy un texto de IA.</div>
+            <div class="skip-hint">[Shift: saltar] [Enter: cerrar]</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ---- imágenes (simuladas con canvas por falta de assets reales) ----
+        function createSprite(width, height, color, label) {
+            const c = document.createElement('canvas');
+            c.width = width;
+            c.height = height;
+            const cx = c.getContext('2d');
+            cx.fillStyle = color || '#c0a080';
+            cx.fillRect(0, 0, width, height);
+            cx.strokeStyle = '#2a1a0a';
+            cx.lineWidth = 2;
+            cx.strokeRect(2, 2, width-4, height-4);
+            cx.fillStyle = '#1a0a0a';
+            cx.font = '12px monospace';
+            cx.textAlign = 'center';
+            cx.textBaseline = 'middle';
+            cx.fillText(label || 'Frisk', width/2, height/2-4);
+            return c;
+        }
+
+        // generamos sprites "mock" para cada dirección
+        const sprites = {
+            downIdle: createSprite(32, 48, '#b8a090', '↓ AFK'),
+            downWalk: createSprite(32, 48, '#b8a090', '↓ WALK'),
+            upIdle: createSprite(32, 48, '#b8a090', '↑ AFK'),
+            upWalk: createSprite(32, 48, '#b8a090', '↑ WALK'),
+            rightIdle: createSprite(32, 48, '#b8a090', '→ AFK'),
+            rightWalk: createSprite(32, 48, '#b8a090', '→ WALK'),
+            leftIdle: createSprite(32, 48, '#b8a090', '← AFK'),
+            leftWalk: createSprite(32, 48, '#b8a090', '← WALK'),
+        };
+
+        // fondo simulado
+        const fondoCanvas = document.createElement('canvas');
+        fondoCanvas.width = 800;
+        fondoCanvas.height = 600;
+        const fctx = fondoCanvas.getContext('2d');
+        fctx.fillStyle = '#2a2a3e';
+        fctx.fillRect(0,0,800,600);
+        fctx.fillStyle = '#4a4a5e';
+        for(let i=0; i<60; i++) {
+            fctx.beginPath();
+            fctx.arc(40+Math.random()*720, 40+Math.random()*520, 8+Math.random()*20, 0, Math.PI*2);
+            fctx.fillStyle = `hsl(${200+Math.random()*40}, 50%, ${20+Math.random()*20}%)`;
+            fctx.fill();
+        }
+        fctx.fillStyle = '#8a7a5a';
+        fctx.font = 'bold 20px monospace';
+        fctx.fillText('★ UNDERGROUND ★', 280, 80);
+
+        // ---- estado del juego ----
+        const state = {
+            x: 380, y: 280,
+            dir: 'down', // up, down, left, right
+            moving: false,
+            frame: 0,
+            // pausa
+            paused: false,
+            // dialogo
+            dialogueActive: false,
+            dialogueText: '',
+            dialogueFull: '',
+            dialogueIndex: 0,
+            dialogueTimer: 0,
+            skipPressed: false,
+            // salir
+            exitHold: false,
+            exitTimer: 0,
+            exitDots: 0,
+            exitActive: false,
+            // controles
+            wasd: false,
+            keys: {
+                ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+                w: false, a: false, s: false, d: false
+            }
+        };
+
+        // ---- audio (mock) ----
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTalkSound() {
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(400 + Math.random()*200, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } catch(e) {}
+        }
+
+        // loop de música (simulado con oscilador simple, pero en loop)
+        let musicInterval = null;
+        function startMusic() {
+            if (musicInterval) return;
+            musicInterval = setInterval(() => {
+                if (!state.paused && !state.exitActive) {
+                    try {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(180 + Math.sin(Date.now()/1000)*20, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.4);
+                    } catch(e) {}
+                }
+            }, 500);
+        }
+        startMusic();
+
+        // ---- diálogos IA ----
+        const iaMessages = [
+            "La inteligencia artificial es como una estrella en el cosmos digital.",
+            "Cada píxel de este mundo tiene una historia que contar.",
+            "La determinación es el alma de todo viajero.",
+            "En el subsuelo, el tiempo se mide en latidos de corazón.",
+            "Frisk, el poder de la amistad trasciende cualquier código.",
+            "Sans siempre dice: 'estás teniendo un mal momento, ¿verdad?'",
+            "El amor y la compasión son el verdadero motor del universo.",
+            "Este texto ha sido generado por una IA con mucho cariño."
+        ];
+
+        function getRandomIAText() {
+            return iaMessages[Math.floor(Math.random() * iaMessages.length)];
+        }
+
+        // ---- dibujo ----
+        function draw() {
+            ctx.clearRect(0, 0, 800, 600);
+            // fondo
+            ctx.drawImage(fondoCanvas, 0, 0);
+
+            // personaje
+            const spriteKey = (() => {
+                const dirMap = {
+                    down: state.moving ? 'downWalk' : 'downIdle',
+                    up: state.moving ? 'upWalk' : 'upIdle',
+                    right: state.moving ? 'rightWalk' : 'rightIdle',
+                    left: state.moving ? 'leftWalk' : 'leftIdle'
+                };
+                return dirMap[state.dir] || 'downIdle';
+            })();
+            const sprite = sprites[spriteKey] || sprites.downIdle;
+            ctx.drawImage(sprite, state.x-16, state.y-24, 32, 48);
+
+            // indicador de dirección (debug visual)
+            ctx.fillStyle = '#f0e6d0';
+            ctx.font = '14px monospace';
+            ctx.fillText(`[${state.dir}]`, state.x+20, state.y-30);
+        }
+
+        // ---- lógica movimiento ----
+        function updateMovement() {
+            if (state.paused || state.dialogueActive || state.exitActive) return;
+
+            let dx = 0, dy = 0;
+            const k = state.keys;
+            const useWASD = state.wasd;
+            let up = k.ArrowUp || (useWASD && k.w);
+            let down = k.ArrowDown || (useWASD && k.s);
+            let left = k.ArrowLeft || (useWASD && k.a);
+            let right = k.ArrowRight || (useWASD && k.d);
+
+            // prioridad: vertical > horizontal
+            if (up) { dy = -1; state.dir = 'up'; }
+            else if (down) { dy = 1; state.dir = 'down'; }
+            else if (left) { dx = -1; state.dir = 'left'; }
+            else if (right) { dx = 1; state.dir = 'right'; }
+
+            state.moving = (dx !== 0 || dy !== 0);
+            if (state.moving) {
+                state.x += dx * 2.5;
+                state.y += dy * 2.5;
+                // límites
+                state.x = Math.min(780, Math.max(20, state.x));
+                state.y = Math.min(560, Math.max(40, state.y));
+                // animación frame
+                state.frame = (state.frame + 1) % 20;
+            }
+        }
+
+        // ---- diálogo ----
+        function startDialogue() {
+            if (state.dialogueActive) return;
+            const msg = getRandomIAText();
+            state.dialogueFull = msg;
+            state.dialogueText = '';
+            state.dialogueIndex = 0;
+            state.dialogueActive = true;
+            state.dialogueTimer = 0;
+            document.getElementById('text-box').classList.add('active');
+            document.getElementById('dialogueText').innerText = '';
+            // sonido inicial
+            playTalkSound();
+        }
+
+        function updateDialogue() {
+            if (!state.dialogueActive) return;
+            const box = document.getElementById('text-box');
+            const textEl = document.getElementById('dialogueText');
+
+            // si se presiona shift, mostrar todo de una
+            if (state.skipPressed) {
+                state.dialogueText = state.dialogueFull;
+                textEl.innerText = state.dialogueFull;
+                state.skipPressed = false;
+                return;
+            }
+
+            // tipeo letra por letra con sonido
+            if (state.dialogueIndex < state.dialogueFull.length) {
+                state.dialogueTimer++;
+                if (state.dialogueTimer % 3 === 0) { // velocidad
+                    state.dialogueText += state.dialogueFull[state.dialogueIndex];
+                    textEl.innerText = state.dialogueText;
+                    state.dialogueIndex++;
+                    playTalkSound();
+                }
+            }
+        }
+
+        function closeDialogue() {
+            state.dialogueActive = false;
+            state.dialogueText = '';
+            state.dialogueFull = '';
+            document.getElementById('text-box').classList.remove('active');
+        }
+
+        // ---- pausa ----
+        function togglePause() {
+            state.paused = !state.paused;
+            const menu = document.getElementById('pause-menu');
+            if (state.paused) {
+                menu.classList.add('active');
+            } else {
+                menu.classList.remove('active');
+            }
+        }
+
+        // ---- salir (ESC sostenido) ----
+        function updateExit() {
+            if (state.exitActive) {
+                state.exitTimer++;
+                if (state.exitTimer > 20) { // ~1 segundo a 60fps
+                    // salir de la página
+                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0a0a0a;color:#f0e6d0;font-family:monospace;font-size:40px;">👋 Hasta luego, Frisk.</div>';
+                    // también detener audio
+                    if (musicInterval) clearInterval(musicInterval);
+                    return;
+                }
+                // actualizar puntos
+                const dots = Math.min(3, Math.floor(state.exitTimer / 7));
+                document.getElementById('exitDots').innerText = '.'.repeat(dots);
+                return;
+            }
+
+            // si se mantiene ESC por 1 segundo
+            if (state.keys.Escape) {
+                state.exitTimer++;
+                if (state.exitTimer > 60) { // 1 segundo
+                    state.exitActive = true;
+                    state.exitTimer = 0;
+                    document.getElementById('exit-prompt').style.display = 'block';
+                    document.getElementById('exitDots').innerText = '.';
+                }
+            } else {
+                state.exitTimer = 0;
+                if (!state.exitActive) {
+                    document.getElementById('exit-prompt').style.display = 'none';
+                }
+            }
+        }
+
+        // ---- teclado ----
+        document.addEventListener('keydown', (e) => {
+            const key = e.key;
+            // evitar scroll
+            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key)) {
+                e.preventDefault();
+            }
+
+            // activar WASD con Tab (toggle)
+            if (key === 'Tab') {
+                e.preventDefault();
+                state.wasd = !state.wasd;
+                // mostrar feedback en pausa (no necesario)
+                return;
+            }
+
+            // ESC: salir si se mantiene
+            if (key === 'Escape') {
+                e.preventDefault();
+                state.keys.Escape = true;
+                return;
+            }
+
+            // L: iniciar diálogo
+            if (key === 'l' || key === 'L') {
+                if (!state.dialogueActive && !state.paused && !state.exitActive) {
+                    startDialogue();
+                }
+                return;
+            }
+
+            // Shift: saltar diálogo
+            if (key === 'Shift') {
+                state.skipPressed = true;
+                return;
+            }
+
+            // Enter: cerrar diálogo
+            if (key === 'Enter') {
+                if (state.dialogueActive) {
+                    closeDialogue();
+                    return;
+                }
+                // si pausa, no cerrar con enter
+                return;
+            }
+
+            // mapear teclas de movimiento
+            const moveKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','W','a','A','s','S','d','D'];
+            if (moveKeys.includes(key)) {
+                e.preventDefault();
+                const k = key.toLowerCase();
+                if (k === 'arrowup' || k === 'w') state.keys.ArrowUp = true;
+                if (k === 'arrowdown' || k === 's') state.keys.ArrowDown = true;
+                if (k === 'arrowleft' || k === 'a') state.keys.ArrowLeft = true;
+                if (k === 'arrowright' || k === 'd') state.keys.ArrowRight = true;
+                // wasd
+                if (k === 'w') state.keys.w = true;
+                if (k === 'a') state.keys.a = true;
+                if (k === 's') state.keys.s = true;
+                if (k === 'd') state.keys.d = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key;
+            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key)) {
+                e.preventDefault();
+            }
+            if (key === 'Escape') {
+                state.keys.Escape = false;
+                if (!state.exitActive) {
+                    document.getElementById('exit-prompt').style.display = 'none';
+                    state.exitTimer = 0;
+                }
+                return;
+            }
+            if (key === 'Tab') return;
+
+            const k = key.toLowerCase();
+            if (k === 'arrowup' || k === 'w') { state.keys.ArrowUp = false; state.keys.w = false; }
+            if (k === 'arrowdown' || k === 's') { state.keys.ArrowDown = false; state.keys.s = false; }
+            if (k === 'arrowleft' || k === 'a') { state.keys.ArrowLeft = false; state.keys.a = false; }
+            if (k === 'arrowright' || k === 'd') { state.keys.ArrowRight = false; state.keys.d = false; }
+            if (k === 'shift') state.skipPressed = false;
+        });
+
+        // ---- bucle principal ----
+        function gameLoop() {
+            if (!state.exitActive) {
+                updateMovement();
+                updateDialogue();
+                updateExit();
+            } else {
+                updateExit(); // sigue animando salida
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ---- click en pausa para toggle (solo si está activa) ----
+        document.getElementById('pause-menu').addEventListener('click', (e) => {
+            // cerramos pausa al hacer click fuera, pero mejor lo dejamos
+        });
+        // también con ESC se cierra
+        // toggles con ESC (pero solo si no está en salida)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !state.exitActive && !state.keys.Escape) {
+                // pero lo manejamos en el keydown de escape para no interferir
+            }
+        });
+        // parche: si se presiona ESC rápido, toggle pausa, pero si se mantiene, salir.
+        // Usamos un timer separado.
+        let escPressTime = 0;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!state.exitActive && !state.paused && !state.dialogueActive) {
+                    // si no está sostenido, toggle pausa
+                    if (escPressTime === 0) {
+                        escPressTime = Date.now();
+                    } else {
+                        // si ya se mantuvo, no toggle
+                    }
+                }
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Escape') {
+                const duration = Date.now() - escPressTime;
+                if (duration < 300 && !state.exitActive && !state.paused) {
+                    togglePause();
+                } else if (duration < 300 && state.paused && !state.exitActive) {
+                    togglePause();
+                }
+                escPressTime = 0;
+            }
+        });
+
+        // ---- iniciar ----
+        gameLoop();
+
+        // override toggle pausa con ESC suave
+        window.togglePause = togglePause;
+
+        // Para que el juego no se cierre accidentalmente con ESC
+        window.addEventListener('beforeunload', (e) => {
+            if (!state.exitActive) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+
+        console.log('🎮 Undertale Frisk · Presiona L para diálogo IA, Tab para WASD, ESC para pausa/salir.');
+    })();
+</script>
+</body>
+</html>
