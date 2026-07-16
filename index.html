@@ -7,8 +7,8 @@
     <style>
         @font-face {
             font-family: 'Determination Mono';
-            src: url('DTM-Mono.woff2') format('woff2'), 
-                 url('DTM-Mono.otf') format('opentype');
+            src: url('https://cdn.jsdelivr.net/gh/Undertale-Resources/DTM-Mono/DTM-Mono.woff2') format('woff2'),
+                 url('https://cdn.jsdelivr.net/gh/Undertale-Resources/DTM-Mono/DTM-Mono.woff') format('woff');
             font-weight: normal;
             font-style: normal;
         }
@@ -71,6 +71,7 @@
             backdrop-filter: blur(4px);
             box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
             text-shadow: 2px 2px 0 #3a2a1a;
+            font-family: 'Determination Mono', monospace;
         }
         #pause-menu.active {
             display: flex;
@@ -115,6 +116,7 @@
             display: none;
             pointer-events: none;
             border: 1px solid #b8a080;
+            font-family: 'Determination Mono', monospace;
         }
         /* === ESTILO DE DIÁLOGO ESTILO UNDERTALE === */
         #text-box {
@@ -168,6 +170,7 @@
             border-radius: 20px;
             border: 2px solid #f0e6d0;
             min-width: 300px;
+            font-family: 'Determination Mono', monospace;
         }
         #loading .spinner {
             display: inline-block;
@@ -195,6 +198,16 @@
             max-height: 100px;
             overflow-y: auto;
         }
+        #gamepad-status {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: #4a4a5e;
+            font-size: 12px;
+            font-family: 'Determination Mono', monospace;
+            pointer-events: none;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -221,6 +234,7 @@
             <div class="text-content" id="dialogueText">* Hola, soy un texto de IA.</div>
             <div class="skip-hint">[Shift: saltar] [Enter: cerrar]</div>
         </div>
+        <div id="gamepad-status">🎮 Mando: Desconectado</div>
     </div>
 </div>
 
@@ -231,18 +245,22 @@
         const loading = document.getElementById('loading');
         const loadStatus = document.getElementById('load-status');
         const errorList = document.getElementById('error-list');
+        const gamepadStatus = document.getElementById('gamepad-status');
 
-        // ---- Lista de assets con sus rutas relativas ----
+        // ---- Lista de assets con sus rutas relativas (organizado por carpetas) ----
         const ASSET_LIST = [
-            { id: 'downIdle', path: 'Frisk_abajoAFK.webp', type: 'image' },
-            { id: 'downWalk', path: 'Frisk_AbajoCaminar.gif', type: 'image' },
-            { id: 'upWalk', path: 'Frisk_ArribaCaminar.gif', type: 'image' },
-            { id: 'rightWalk', path: 'Frisk_DerechaCaminar.gif', type: 'image' },
-            { id: 'rightIdle', path: 'Frisk_DerechaAFK.webp', type: 'image' },
-            { id: 'upIdle', path: 'Frisk_ArribaAFK.webp', type: 'image' },
-            { id: 'background', path: 'Fondo.png', type: 'image' },
-            { id: 'music', path: 'Fondooo.mp3', type: 'audio' },
-            { id: 'talkSound', path: 'Talkk.mp3', type: 'audio' }
+            // Sprites de Frisk (carpeta Frisk)
+            { id: 'downIdle', path: 'Frisk/Frisk_abajoAFK.webp', type: 'image' },
+            { id: 'downWalk', path: 'Frisk/Frisk_AbajoCaminar.gif', type: 'image' },
+            { id: 'upWalk', path: 'Frisk/Frisk_ArribaCaminar.gif', type: 'image' },
+            { id: 'rightWalk', path: 'Frisk/Frisk_DerechaCaminar.gif', type: 'image' },
+            { id: 'rightIdle', path: 'Frisk/Frisk_DerechaAFK.webp', type: 'image' },
+            { id: 'upIdle', path: 'Frisk/Frisk_ArribaAFK.webp', type: 'image' },
+            // Fondo (carpeta Imagenes)
+            { id: 'background', path: 'Imagenes/Fondo.png', type: 'image' },
+            // Sonidos (carpeta Sonidos)
+            { id: 'music', path: 'Sonidos/Fondooo.mp3', type: 'audio' },
+            { id: 'talkSound', path: 'Sonidos/Talkk.mp3', type: 'audio' }
         ];
 
         const loadedAssets = { images: {}, audio: {} };
@@ -390,9 +408,17 @@
             wasd: false,
             keys: {
                 ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-                w: false, a: false, s: false, d: false, Escape: false
-            }
+                w: false, a: false, s: false, d: false, Escape: false,
+                // Botones de mando
+                gamepadUp: false, gamepadDown: false, gamepadLeft: false, gamepadRight: false,
+                gamepadA: false, gamepadB: false, gamepadStart: false, gamepadSelect: false
+            },
+            gamepadConnected: false
         };
+
+        // ---- Estado del mando ----
+        let gamepadIndex = null;
+        let previousGamepadState = {};
 
         // ---- Diálogos IA ----
         const iaMessages = [
@@ -437,6 +463,121 @@
                     osc.stop(audioCtx.currentTime + 0.08);
                 } catch(e) {}
             }
+        }
+
+        // ---- Manejo del mando (Gamepad API) ----
+        function updateGamepad() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            
+            // Buscar un mando conectado
+            let connected = false;
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (gp) {
+                    gamepadIndex = i;
+                    connected = true;
+                    break;
+                }
+            }
+
+            if (!connected) {
+                if (state.gamepadConnected) {
+                    state.gamepadConnected = false;
+                    gamepadStatus.textContent = '🎮 Mando: Desconectado';
+                    gamepadStatus.style.color = '#4a4a5e';
+                    // Resetear teclas del mando
+                    state.keys.gamepadUp = false;
+                    state.keys.gamepadDown = false;
+                    state.keys.gamepadLeft = false;
+                    state.keys.gamepadRight = false;
+                    state.keys.gamepadA = false;
+                    state.keys.gamepadB = false;
+                    state.keys.gamepadStart = false;
+                    state.keys.gamepadSelect = false;
+                }
+                return;
+            }
+
+            const gp = gamepads[gamepadIndex];
+            if (!gp) return;
+
+            if (!state.gamepadConnected) {
+                state.gamepadConnected = true;
+                gamepadStatus.textContent = `🎮 Mando: ${gp.id || 'Conectado'}`;
+                gamepadStatus.style.color = '#8f8';
+            }
+
+            // Mapeo de botones estándar (mando Xbox/PlayStation)
+            const buttons = gp.buttons;
+            const axes = gp.axes;
+
+            // Movimiento con el stick izquierdo (ejes 0 y 1)
+            const deadZone = 0.2;
+            const axisX = axes[0] || 0;
+            const axisY = axes[1] || 0;
+
+            // Detectar movimiento con el stick
+            const stickUp = axisY < -deadZone;
+            const stickDown = axisY > deadZone;
+            const stickLeft = axisX < -deadZone;
+            const stickRight = axisX > deadZone;
+
+            // D-Pad (botones 12-15 en algunos mandos)
+            const dpadUp = buttons[12] ? buttons[12].pressed : false;
+            const dpadDown = buttons[13] ? buttons[13].pressed : false;
+            const dpadLeft = buttons[14] ? buttons[14].pressed : false;
+            const dpadRight = buttons[15] ? buttons[15].pressed : false;
+
+            // Combinar stick + D-Pad
+            state.keys.gamepadUp = stickUp || dpadUp;
+            state.keys.gamepadDown = stickDown || dpadDown;
+            state.keys.gamepadLeft = stickLeft || dpadLeft;
+            state.keys.gamepadRight = stickRight || dpadRight;
+
+            // Botones de acción
+            const aPressed = buttons[0] ? buttons[0].pressed : false;
+            const bPressed = buttons[1] ? buttons[1].pressed : false;
+            const startPressed = buttons[9] ? buttons[9].pressed : false;
+            const selectPressed = buttons[8] ? buttons[8].pressed : false;
+
+            // Detectar pulsaciones (solo cuando se presionan, no cuando se mantienen)
+            const previous = previousGamepadState;
+            
+            // Botón A (equivalente a L/Enter)
+            if (aPressed && !previous.a) {
+                if (!state.dialogueActive && !state.paused && !state.exitActive) {
+                    startDialogue();
+                } else if (state.dialogueActive) {
+                    closeDialogue();
+                }
+            }
+
+            // Botón B (equivalente a cancelar/cerrar)
+            if (bPressed && !previous.b) {
+                if (state.dialogueActive) {
+                    closeDialogue();
+                }
+            }
+
+            // Botón Start (equivalente a ESC - pausa)
+            if (startPressed && !previous.start) {
+                if (!state.exitActive) {
+                    togglePause();
+                }
+            }
+
+            // Botón Select (equivalente a Tab - WASD toggle)
+            if (selectPressed && !previous.select) {
+                state.wasd = !state.wasd;
+            }
+
+            // Guardar estado actual para detección de pulsaciones
+            previousGamepadState = {
+                a: aPressed,
+                b: bPressed,
+                start: startPressed,
+                select: selectPressed
+            };
         }
 
         // ---- Dibujo ----
@@ -487,17 +628,18 @@
             }
         }
 
-        // ---- Movimiento ----
+        // ---- Movimiento (con soporte para mando) ----
         function updateMovement() {
             if (state.paused || state.dialogueActive || state.exitActive) return;
 
             const k = state.keys;
             const useWASD = state.wasd;
             
-            const up = k.ArrowUp || (useWASD && k.w);
-            const down = k.ArrowDown || (useWASD && k.s);
-            const left = k.ArrowLeft || (useWASD && k.a);
-            const right = k.ArrowRight || (useWASD && k.d);
+            // Combinar teclas del teclado + mando
+            const up = k.ArrowUp || (useWASD && k.w) || k.gamepadUp;
+            const down = k.ArrowDown || (useWASD && k.s) || k.gamepadDown;
+            const left = k.ArrowLeft || (useWASD && k.a) || k.gamepadLeft;
+            const right = k.ArrowRight || (useWASD && k.d) || k.gamepadRight;
 
             let dx = 0, dy = 0;
 
@@ -707,6 +849,9 @@
 
         // ---- Bucle del juego ----
         function gameLoop() {
+            // Actualizar estado del mando
+            updateGamepad();
+
             if (!state.exitActive) {
                 updateMovement();
                 updateDialogue();
@@ -718,6 +863,31 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // ---- Detectar conexión de mandos ----
+        window.addEventListener('gamepadconnected', (e) => {
+            console.log('🎮 Mando conectado:', e.gamepad.id);
+            state.gamepadConnected = true;
+            gamepadIndex = e.gamepad.index;
+            gamepadStatus.textContent = `🎮 Mando: ${e.gamepad.id}`;
+            gamepadStatus.style.color = '#8f8';
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            console.log('🎮 Mando desconectado');
+            state.gamepadConnected = false;
+            gamepadStatus.textContent = '🎮 Mando: Desconectado';
+            gamepadStatus.style.color = '#4a4a5e';
+            // Resetear teclas del mando
+            state.keys.gamepadUp = false;
+            state.keys.gamepadDown = false;
+            state.keys.gamepadLeft = false;
+            state.keys.gamepadRight = false;
+            state.keys.gamepadA = false;
+            state.keys.gamepadB = false;
+            state.keys.gamepadStart = false;
+            state.keys.gamepadSelect = false;
+        });
+
         // ---- Iniciar carga ----
         loadAllAssets();
 
@@ -728,8 +898,11 @@
             }
         });
 
-        console.log('🎮 Undertale Frisk · Coloca todos los archivos en la misma carpeta que este HTML');
-        console.log('📁 Archivos necesarios:', ASSET_LIST.map(a => a.path).join(', '));
+        console.log('🎮 Undertale Frisk · Estructura de carpetas:');
+        console.log('📁 Frisk/ - Sprites del personaje');
+        console.log('📁 Imagenes/ - Fondo.png');
+        console.log('📁 Sonidos/ - Fondooo.mp3, Talkk.mp3');
+        console.log('🔤 Fuente Determination Mono desde CDN');
     })();
 </script>
 </body>
