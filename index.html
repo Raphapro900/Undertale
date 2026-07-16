@@ -215,7 +215,7 @@
     <div id="loading">
         <div class="spinner"></div>
         <div>Cargando recursos...</div>
-        <div class="status-detail" id="load-status">0/10 archivos</div>
+        <div class="status-detail" id="load-status">0/9 archivos</div>
         <div class="error-list" id="error-list"></div>
     </div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -247,7 +247,7 @@
         const errorList = document.getElementById('error-list');
         const gamepadStatus = document.getElementById('gamepad-status');
 
-        // ---- Lista de assets con sus rutas relativas (organizado por carpetas) ----
+        // ---- Lista de assets con sus rutas relativas ----
         const ASSET_LIST = [
             // Sprites de Frisk (carpeta Frisk)
             { id: 'downIdle', path: 'Frisk/Frisk_abajoAFK.webp', type: 'image' },
@@ -258,9 +258,9 @@
             { id: 'upIdle', path: 'Frisk/Frisk_ArribaAFK.webp', type: 'image' },
             // Fondo (carpeta Imagenes)
             { id: 'background', path: 'Imagenes/Fondo.png', type: 'image' },
-            // Sonidos (carpeta Sonidos)
-            { id: 'music', path: 'Sonidos/Fondooo.mp3', type: 'audio' },
-            { id: 'talkSound', path: 'Sonidos/Talkk.mp3', type: 'audio' }
+            // Sonidos (carpeta Sonido - SIN la S al final)
+            { id: 'music', path: 'Sonido/Fondooo.mp3', type: 'audio' },
+            { id: 'talkSound', path: 'Sonido/Talkk.mp3', type: 'audio' }
         ];
 
         const loadedAssets = { images: {}, audio: {} };
@@ -275,16 +275,42 @@
             }
         }
 
-        // ---- Funciones de carga ----
+        // ---- Funciones de carga con manejo de dimensiones ----
         function loadImage(path) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
+                    // Asegurar que la imagen tenga dimensiones válidas
+                    if (img.width === 0 || img.height === 0) {
+                        img.width = 32;
+                        img.height = 48;
+                    }
                     resolve(img);
                 };
                 img.onerror = () => {
                     errors.push(`No se pudo cargar: ${path}`);
-                    resolve(null);
+                    // Crear imagen de respaldo con dimensiones correctas
+                    const fallback = new Image();
+                    fallback.width = 32;
+                    fallback.height = 48;
+                    // Dibujar un sprite de respaldo en un canvas
+                    const c = document.createElement('canvas');
+                    c.width = 32;
+                    c.height = 48;
+                    const cx = c.getContext('2d');
+                    cx.fillStyle = '#b8a090';
+                    cx.fillRect(0, 0, 32, 48);
+                    cx.strokeStyle = '#2a1a0a';
+                    cx.lineWidth = 2;
+                    cx.strokeRect(2, 2, 28, 44);
+                    cx.fillStyle = '#1a0a0a';
+                    cx.font = '9px monospace';
+                    cx.textAlign = 'center';
+                    cx.textBaseline = 'middle';
+                    const label = path.split('/').pop().replace(/\.[^.]+$/, '');
+                    cx.fillText(label.substring(0, 6), 16, 24);
+                    fallback.src = c.toDataURL();
+                    resolve(fallback);
                 };
                 img.src = path;
             });
@@ -293,15 +319,36 @@
         function loadAudio(path) {
             return new Promise((resolve) => {
                 const audio = new Audio();
-                audio.oncanplaythrough = () => {
+                audio.preload = 'auto';
+                
+                const handleCanPlay = () => {
+                    audio.removeEventListener('canplaythrough', handleCanPlay);
+                    audio.removeEventListener('loadeddata', handleCanPlay);
                     resolve(audio);
                 };
+                
+                audio.addEventListener('canplaythrough', handleCanPlay);
+                audio.addEventListener('loadeddata', handleCanPlay);
+                
                 audio.onerror = () => {
-                    errors.push(`No se pudo cargar: ${path}`);
-                    resolve(null);
+                    errors.push(`No se pudo cargar audio: ${path}`);
+                    // Crear audio de respaldo (silencio)
+                    const fallbackAudio = new Audio();
+                    fallbackAudio.volume = 0;
+                    resolve(fallbackAudio);
                 };
+                
                 audio.src = path;
                 audio.load();
+                
+                // Timeout por si tarda mucho
+                setTimeout(() => {
+                    if (!audio.duration) {
+                        audio.removeEventListener('canplaythrough', handleCanPlay);
+                        audio.removeEventListener('loadeddata', handleCanPlay);
+                        resolve(audio);
+                    }
+                }, 5000);
             });
         }
 
@@ -326,12 +373,14 @@
 
         function flipImage(img) {
             const canvas = document.createElement('canvas');
-            canvas.width = img.width || 32;
-            canvas.height = img.height || 48;
+            const width = img.width || 32;
+            const height = img.height || 48;
+            canvas.width = width;
+            canvas.height = height;
             const c = canvas.getContext('2d');
-            c.translate(canvas.width, 0);
+            c.translate(width, 0);
             c.scale(-1, 1);
-            c.drawImage(img, 0, 0);
+            c.drawImage(img, 0, 0, width, height);
             return canvas;
         }
 
@@ -340,19 +389,13 @@
             const loadPromises = ASSET_LIST.map(async (asset) => {
                 if (asset.type === 'image') {
                     const img = await loadImage(asset.path);
-                    if (img) {
-                        loadedAssets.images[asset.id] = img;
-                    } else {
-                        const label = asset.id.replace('Idle', ' AFK').replace('Walk', ' WALK');
-                        loadedAssets.images[asset.id] = createFallbackSprite(label);
-                    }
+                    loadedAssets.images[asset.id] = img;
                 } else if (asset.type === 'audio') {
                     const audio = await loadAudio(asset.path);
-                    if (audio) {
-                        loadedAssets.audio[asset.id] = audio;
-                        if (asset.id === 'music') {
-                            loadedAssets.audio[asset.id].loop = true;
-                        }
+                    loadedAssets.audio[asset.id] = audio;
+                    if (asset.id === 'music') {
+                        loadedAssets.audio[asset.id].loop = true;
+                        loadedAssets.audio[asset.id].volume = 0.3;
                     }
                 }
                 loadedCount++;
@@ -380,11 +423,14 @@
                 loading.style.display = 'none';
             }, 1000);
 
-            // Iniciar música
-            if (loadedAssets.audio.music) {
-                loadedAssets.audio.music.volume = 0.3;
-                loadedAssets.audio.music.play().catch(() => {});
-            }
+            // Iniciar música (con retraso para asegurar que el audio esté listo)
+            setTimeout(() => {
+                if (loadedAssets.audio.music && loadedAssets.audio.music.duration > 0) {
+                    try {
+                        loadedAssets.audio.music.play().catch(() => {});
+                    } catch(e) {}
+                }
+            }, 500);
 
             // Iniciar el juego
             gameLoop();
@@ -409,7 +455,6 @@
             keys: {
                 ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
                 w: false, a: false, s: false, d: false, Escape: false,
-                // Botones de mando
                 gamepadUp: false, gamepadDown: false, gamepadLeft: false, gamepadRight: false,
                 gamepadA: false, gamepadB: false, gamepadStart: false, gamepadSelect: false
             },
@@ -441,14 +486,14 @@
 
         // ---- Sonido de diálogo ----
         function playTalkSound() {
-            if (loadedAssets.audio.talkSound) {
+            if (loadedAssets.audio.talkSound && loadedAssets.audio.talkSound.duration > 0) {
                 try {
                     const audio = loadedAssets.audio.talkSound.cloneNode();
                     audio.volume = 0.2;
                     audio.play().catch(() => {});
                 } catch(e) {}
             } else {
-                // Fallback
+                // Fallback: oscilador
                 try {
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const osc = audioCtx.createOscillator();
@@ -469,7 +514,6 @@
         function updateGamepad() {
             const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
             
-            // Buscar un mando conectado
             let connected = false;
             for (let i = 0; i < gamepads.length; i++) {
                 const gp = gamepads[i];
@@ -485,7 +529,6 @@
                     state.gamepadConnected = false;
                     gamepadStatus.textContent = '🎮 Mando: Desconectado';
                     gamepadStatus.style.color = '#4a4a5e';
-                    // Resetear teclas del mando
                     state.keys.gamepadUp = false;
                     state.keys.gamepadDown = false;
                     state.keys.gamepadLeft = false;
@@ -507,43 +550,35 @@
                 gamepadStatus.style.color = '#8f8';
             }
 
-            // Mapeo de botones estándar (mando Xbox/PlayStation)
             const buttons = gp.buttons;
             const axes = gp.axes;
 
-            // Movimiento con el stick izquierdo (ejes 0 y 1)
             const deadZone = 0.2;
             const axisX = axes[0] || 0;
             const axisY = axes[1] || 0;
 
-            // Detectar movimiento con el stick
             const stickUp = axisY < -deadZone;
             const stickDown = axisY > deadZone;
             const stickLeft = axisX < -deadZone;
             const stickRight = axisX > deadZone;
 
-            // D-Pad (botones 12-15 en algunos mandos)
             const dpadUp = buttons[12] ? buttons[12].pressed : false;
             const dpadDown = buttons[13] ? buttons[13].pressed : false;
             const dpadLeft = buttons[14] ? buttons[14].pressed : false;
             const dpadRight = buttons[15] ? buttons[15].pressed : false;
 
-            // Combinar stick + D-Pad
             state.keys.gamepadUp = stickUp || dpadUp;
             state.keys.gamepadDown = stickDown || dpadDown;
             state.keys.gamepadLeft = stickLeft || dpadLeft;
             state.keys.gamepadRight = stickRight || dpadRight;
 
-            // Botones de acción
             const aPressed = buttons[0] ? buttons[0].pressed : false;
             const bPressed = buttons[1] ? buttons[1].pressed : false;
             const startPressed = buttons[9] ? buttons[9].pressed : false;
             const selectPressed = buttons[8] ? buttons[8].pressed : false;
 
-            // Detectar pulsaciones (solo cuando se presionan, no cuando se mantienen)
             const previous = previousGamepadState;
             
-            // Botón A (equivalente a L/Enter)
             if (aPressed && !previous.a) {
                 if (!state.dialogueActive && !state.paused && !state.exitActive) {
                     startDialogue();
@@ -552,26 +587,22 @@
                 }
             }
 
-            // Botón B (equivalente a cancelar/cerrar)
             if (bPressed && !previous.b) {
                 if (state.dialogueActive) {
                     closeDialogue();
                 }
             }
 
-            // Botón Start (equivalente a ESC - pausa)
             if (startPressed && !previous.start) {
                 if (!state.exitActive) {
                     togglePause();
                 }
             }
 
-            // Botón Select (equivalente a Tab - WASD toggle)
             if (selectPressed && !previous.select) {
                 state.wasd = !state.wasd;
             }
 
-            // Guardar estado actual para detección de pulsaciones
             previousGamepadState = {
                 a: aPressed,
                 b: bPressed,
@@ -588,7 +619,6 @@
             if (loadedAssets.images.background) {
                 ctx.drawImage(loadedAssets.images.background, 0, 0, 800, 600);
             } else {
-                // Fondo de respaldo
                 ctx.fillStyle = '#2a2a3e';
                 ctx.fillRect(0, 0, 800, 600);
                 ctx.fillStyle = '#4a4a5e';
@@ -603,7 +633,7 @@
                 ctx.fillText('★ UNDERGROUND ★', 280, 80);
             }
 
-            // Personaje
+            // Personaje - dibujar con dimensiones fijas 32x48
             const spriteKey = (() => {
                 const dirMap = {
                     down: state.moving ? 'downWalk' : 'downIdle',
@@ -616,9 +646,10 @@
             
             const sprite = loadedAssets.images[spriteKey];
             if (sprite) {
+                // Dibujar con dimensiones fijas para evitar bugs
                 ctx.drawImage(sprite, state.x-16, state.y-24, 32, 48);
             } else {
-                // Fallback
+                // Fallback visual
                 ctx.fillStyle = '#b8a090';
                 ctx.fillRect(state.x-12, state.y-20, 24, 40);
                 ctx.fillStyle = '#1a0a0a';
@@ -628,14 +659,13 @@
             }
         }
 
-        // ---- Movimiento (con soporte para mando) ----
+        // ---- Movimiento ----
         function updateMovement() {
             if (state.paused || state.dialogueActive || state.exitActive) return;
 
             const k = state.keys;
             const useWASD = state.wasd;
             
-            // Combinar teclas del teclado + mando
             const up = k.ArrowUp || (useWASD && k.w) || k.gamepadUp;
             const down = k.ArrowDown || (useWASD && k.s) || k.gamepadDown;
             const left = k.ArrowLeft || (useWASD && k.a) || k.gamepadLeft;
@@ -724,7 +754,9 @@
                 if (loadedAssets.audio.music) loadedAssets.audio.music.pause();
             } else {
                 menu.classList.remove('active');
-                if (loadedAssets.audio.music) loadedAssets.audio.music.play().catch(() => {});
+                if (loadedAssets.audio.music) {
+                    loadedAssets.audio.music.play().catch(() => {});
+                }
             }
         }
 
@@ -849,7 +881,6 @@
 
         // ---- Bucle del juego ----
         function gameLoop() {
-            // Actualizar estado del mando
             updateGamepad();
 
             if (!state.exitActive) {
@@ -877,7 +908,6 @@
             state.gamepadConnected = false;
             gamepadStatus.textContent = '🎮 Mando: Desconectado';
             gamepadStatus.style.color = '#4a4a5e';
-            // Resetear teclas del mando
             state.keys.gamepadUp = false;
             state.keys.gamepadDown = false;
             state.keys.gamepadLeft = false;
@@ -901,7 +931,7 @@
         console.log('🎮 Undertale Frisk · Estructura de carpetas:');
         console.log('📁 Frisk/ - Sprites del personaje');
         console.log('📁 Imagenes/ - Fondo.png');
-        console.log('📁 Sonidos/ - Fondooo.mp3, Talkk.mp3');
+        console.log('📁 Sonido/ - Fondooo.mp3, Talkk.mp3 (SIN la S al final)');
         console.log('🔤 Fuente Determination Mono desde CDN');
     })();
 </script>
