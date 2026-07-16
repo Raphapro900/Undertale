@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Undertale · Frisk (Con Assets)</title>
+    <title>Undertale · Frisk</title>
     <style>
         @font-face {
             font-family: 'Determination Mono';
-            src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts/patched-fonts/UbuntuMono/Regular/complete/Ubuntu%20Mono%20Nerd%20Font%20Complete%20Mono.ttf') format('truetype');
+            src: url('DTM-Mono.woff2') format('woff2'), 
+                 url('DTM-Mono.otf') format('opentype');
             font-weight: normal;
             font-style: normal;
         }
@@ -115,27 +116,27 @@
             pointer-events: none;
             border: 1px solid #b8a080;
         }
+        /* === ESTILO DE DIÁLOGO ESTILO UNDERTALE === */
         #text-box {
             position: absolute;
-            bottom: 40px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            width: 80%;
-            max-width: 640px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 3px solid #f0e6d0;
-            border-radius: 20px;
-            padding: 20px 28px;
-            color: #f0e6d0;
-            font-size: 24px;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+            width: 85%;
+            max-width: 680px;
+            background: black;
+            border: 3px solid white;
+            padding: 18px 24px;
+            color: white;
+            font-family: 'Determination Mono', monospace;
+            font-size: 22px;
             display: none;
             pointer-events: auto;
-            text-shadow: 2px 2px 0 #1a0a0a;
-            letter-spacing: 0.5px;
             min-height: 80px;
             align-items: center;
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+            letter-spacing: 0.5px;
+            line-height: 1.4;
         }
         #text-box .text-content {
             width: 100%;
@@ -143,17 +144,16 @@
         }
         #text-box .skip-hint {
             position: absolute;
-            right: 20px;
-            bottom: 10px;
-            font-size: 14px;
-            color: #8a7a6a;
+            right: 18px;
+            bottom: 8px;
+            font-size: 13px;
+            color: #666;
+            font-family: 'Determination Mono', monospace;
         }
         #text-box.active {
             display: flex;
         }
-        .hidden {
-            display: none !important;
-        }
+        /* === FIN ESTILO DIÁLOGO === */
         #loading {
             position: absolute;
             top: 50%;
@@ -163,10 +163,11 @@
             font-size: 24px;
             text-align: center;
             z-index: 10;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.85);
             padding: 30px 50px;
             border-radius: 20px;
             border: 2px solid #f0e6d0;
+            min-width: 300px;
         }
         #loading .spinner {
             display: inline-block;
@@ -182,14 +183,27 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        #loading .status-detail {
+            font-size: 14px;
+            color: #8a7a6a;
+            margin-top: 8px;
+        }
+        #loading .error-list {
+            font-size: 12px;
+            color: #ff6b6b;
+            margin-top: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
 <div id="game-wrapper">
     <div id="loading">
         <div class="spinner"></div>
-        <div>Cargando assets...</div>
-        <div style="font-size:14px; margin-top:10px; color:#8a7a6a;" id="load-status">0/10</div>
+        <div>Cargando recursos...</div>
+        <div class="status-detail" id="load-status">0/10 archivos</div>
+        <div class="error-list" id="error-list"></div>
     </div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="ui-layer">
@@ -202,8 +216,9 @@
             <div class="menu-row">Activar WASD <span class="key-hint">[W A S D]</span></div>
         </div>
         <div id="exit-prompt">Saliendo<span id="exitDots">.</span></div>
+        <!-- CUADRO DE DIÁLOGO ESTILO UNDERTALE -->
         <div id="text-box">
-            <div class="text-content" id="dialogueText">Hola, soy un texto de IA.</div>
+            <div class="text-content" id="dialogueText">* Hola, soy un texto de IA.</div>
             <div class="skip-hint">[Shift: saltar] [Enter: cerrar]</div>
         </div>
     </div>
@@ -215,66 +230,64 @@
         const ctx = canvas.getContext('2d');
         const loading = document.getElementById('loading');
         const loadStatus = document.getElementById('load-status');
+        const errorList = document.getElementById('error-list');
 
-        // ---- Assets que se cargarán ----
-        const ASSETS = {
-            // Sprites de Frisk
-            'downIdle': 'Frisk_abajoAFK.webp',
-            'downWalk': 'Frisk_AbajoCaminar.gif',
-            'upWalk': 'Frisk_ArribaCaminar.gif',
-            'rightWalk': 'Frisk_DerechaCaminar.gif',
-            'rightIdle': 'Frisk_DerechaAFK.webp',
-            'upIdle': 'Frisk_ArribaAFK.webp',
-            // Para izquierda usaremos los de derecha volteados (se hará en código)
-            'leftIdle': null, // se genera volteando rightIdle
-            'leftWalk': null, // se genera volteando rightWalk
-            // Fondo y música
-            'background': 'Fondo.png',
-            'music': 'Fondooo.mp3',
-            'talkSound': 'Talkk.mp3'
-        };
+        // ---- Lista de assets con sus rutas relativas ----
+        const ASSET_LIST = [
+            { id: 'downIdle', path: 'Frisk_abajoAFK.webp', type: 'image' },
+            { id: 'downWalk', path: 'Frisk_AbajoCaminar.gif', type: 'image' },
+            { id: 'upWalk', path: 'Frisk_ArribaCaminar.gif', type: 'image' },
+            { id: 'rightWalk', path: 'Frisk_DerechaCaminar.gif', type: 'image' },
+            { id: 'rightIdle', path: 'Frisk_DerechaAFK.webp', type: 'image' },
+            { id: 'upIdle', path: 'Frisk_ArribaAFK.webp', type: 'image' },
+            { id: 'background', path: 'Fondo.png', type: 'image' },
+            { id: 'music', path: 'Fondooo.mp3', type: 'audio' },
+            { id: 'talkSound', path: 'Talkk.mp3', type: 'audio' }
+        ];
 
-        // Objeto para almacenar los recursos cargados
-        const loadedAssets = {
-            images: {},
-            audio: {}
-        };
-
-        let assetsLoaded = 0;
-        const totalAssets = Object.keys(ASSETS).length;
+        const loadedAssets = { images: {}, audio: {} };
+        let loadedCount = 0;
+        const totalAssets = ASSET_LIST.length;
+        const errors = [];
 
         function updateLoadStatus() {
-            loadStatus.textContent = `${assetsLoaded}/${totalAssets}`;
+            loadStatus.textContent = `${loadedCount}/${totalAssets} archivos`;
+            if (errors.length > 0) {
+                errorList.innerHTML = errors.map(e => `❌ ${e}`).join('<br>');
+            }
         }
 
-        // ---- Función para cargar imágenes ----
-        function loadImage(url) {
-            return new Promise((resolve, reject) => {
+        // ---- Funciones de carga ----
+        function loadImage(path) {
+            return new Promise((resolve) => {
                 const img = new Image();
-                img.onload = () => resolve(img);
+                img.onload = () => {
+                    resolve(img);
+                };
                 img.onerror = () => {
-                    console.warn(`⚠️ No se pudo cargar: ${url}, usando sprite generado`);
+                    errors.push(`No se pudo cargar: ${path}`);
                     resolve(null);
                 };
-                img.src = url;
+                img.src = path;
             });
         }
 
-        // ---- Función para cargar audio ----
-        function loadAudio(url) {
+        function loadAudio(path) {
             return new Promise((resolve) => {
                 const audio = new Audio();
-                audio.oncanplaythrough = () => resolve(audio);
+                audio.oncanplaythrough = () => {
+                    resolve(audio);
+                };
                 audio.onerror = () => {
-                    console.warn(`⚠️ No se pudo cargar audio: ${url}`);
+                    errors.push(`No se pudo cargar: ${path}`);
                     resolve(null);
                 };
-                audio.src = url;
+                audio.src = path;
                 audio.load();
             });
         }
 
-        // ---- Generar sprites de respaldo (si no se cargan los archivos) ----
+        // ---- Crear sprites de respaldo ----
         function createFallbackSprite(label, color = '#b8a090') {
             const c = document.createElement('canvas');
             c.width = 32;
@@ -286,68 +299,51 @@
             cx.lineWidth = 2;
             cx.strokeRect(2, 2, 28, 44);
             cx.fillStyle = '#1a0a0a';
-            cx.font = '10px monospace';
+            cx.font = '9px monospace';
             cx.textAlign = 'center';
             cx.textBaseline = 'middle';
             cx.fillText(label || 'Frisk', 16, 24);
             return c;
         }
 
+        function flipImage(img) {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width || 32;
+            canvas.height = img.height || 48;
+            const c = canvas.getContext('2d');
+            c.translate(canvas.width, 0);
+            c.scale(-1, 1);
+            c.drawImage(img, 0, 0);
+            return canvas;
+        }
+
         // ---- Cargar todos los assets ----
         async function loadAllAssets() {
-            // Cargar imágenes
-            const imagePromises = [];
-            const imageNames = ['downIdle', 'downWalk', 'upWalk', 'rightWalk', 'rightIdle', 'upIdle', 'background'];
-            
-            for (const name of imageNames) {
-                const url = ASSETS[name];
-                if (url) {
-                    imagePromises.push(
-                        loadImage(url).then(img => {
-                            if (img) {
-                                loadedAssets.images[name] = img;
-                            } else {
-                                // Crear sprite de respaldo
-                                const label = name.replace('Idle', ' AFK').replace('Walk', ' WALK');
-                                loadedAssets.images[name] = createFallbackSprite(label);
-                            }
-                            assetsLoaded++;
-                            updateLoadStatus();
-                        })
-                    );
+            const loadPromises = ASSET_LIST.map(async (asset) => {
+                if (asset.type === 'image') {
+                    const img = await loadImage(asset.path);
+                    if (img) {
+                        loadedAssets.images[asset.id] = img;
+                    } else {
+                        const label = asset.id.replace('Idle', ' AFK').replace('Walk', ' WALK');
+                        loadedAssets.images[asset.id] = createFallbackSprite(label);
+                    }
+                } else if (asset.type === 'audio') {
+                    const audio = await loadAudio(asset.path);
+                    if (audio) {
+                        loadedAssets.audio[asset.id] = audio;
+                        if (asset.id === 'music') {
+                            loadedAssets.audio[asset.id].loop = true;
+                        }
+                    }
                 }
-            }
+                loadedCount++;
+                updateLoadStatus();
+            });
 
-            // Cargar audio
-            const audioPromises = [];
-            if (ASSETS.music) {
-                audioPromises.push(
-                    loadAudio(ASSETS.music).then(audio => {
-                        if (audio) {
-                            loadedAssets.audio.music = audio;
-                            loadedAssets.audio.music.loop = true;
-                        }
-                        assetsLoaded++;
-                        updateLoadStatus();
-                    })
-                );
-            }
-            if (ASSETS.talkSound) {
-                audioPromises.push(
-                    loadAudio(ASSETS.talkSound).then(audio => {
-                        if (audio) {
-                            loadedAssets.audio.talk = audio;
-                        }
-                        assetsLoaded++;
-                        updateLoadStatus();
-                    })
-                );
-            }
+            await Promise.all(loadPromises);
 
-            // Esperar a que todo cargue
-            await Promise.all([...imagePromises, ...audioPromises]);
-
-            // Generar sprites de izquierda volteando los de derecha
+            // Generar sprites de izquierda (volteando derecha)
             if (loadedAssets.images.rightIdle) {
                 loadedAssets.images.leftIdle = flipImage(loadedAssets.images.rightIdle);
             } else {
@@ -358,13 +354,15 @@
             } else {
                 loadedAssets.images.leftWalk = createFallbackSprite('← WALK', '#b8a090');
             }
-            assetsLoaded += 2;
+            loadedCount += 2;
             updateLoadStatus();
 
-            // Ocultar loading
-            loading.style.display = 'none';
+            // Ocultar loading después de 1 segundo
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 1000);
 
-            // Iniciar música si está disponible
+            // Iniciar música
             if (loadedAssets.audio.music) {
                 loadedAssets.audio.music.volume = 0.3;
                 loadedAssets.audio.music.play().catch(() => {});
@@ -372,18 +370,6 @@
 
             // Iniciar el juego
             gameLoop();
-        }
-
-        // ---- Función para voltear una imagen ----
-        function flipImage(img) {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width || 32;
-            canvas.height = img.height || 48;
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(img, 0, 0);
-            return canvas;
         }
 
         // ---- Estado del juego ----
@@ -410,14 +396,17 @@
 
         // ---- Diálogos IA ----
         const iaMessages = [
-            "La inteligencia artificial es como una estrella en el cosmos digital.",
-            "Cada píxel de este mundo tiene una historia que contar.",
-            "La determinación es el alma de todo viajero.",
-            "En el subsuelo, el tiempo se mide en latidos de corazón.",
-            "Frisk, el poder de la amistad trasciende cualquier código.",
-            "Sans siempre dice: 'estás teniendo un mal momento, ¿verdad?'",
-            "El amor y la compasión son el verdadero motor del universo.",
-            "Este texto ha sido generado por una IA con mucho cariño."
+            "* La inteligencia artificial es como una estrella en el cosmos digital.",
+            "* Cada píxel de este mundo tiene una historia que contar.",
+            "* La determinación es el alma de todo viajero.",
+            "* En el subsuelo, el tiempo se mide en latidos de corazón.",
+            "* Frisk, el poder de la amistad trasciende cualquier código.",
+            "* Sans siempre dice: 'estás teniendo un mal momento, ¿verdad?'",
+            "* El amor y la compasión son el verdadero motor del universo.",
+            "* Este texto ha sido generado por una IA con mucho cariño.",
+            "* But nobody came.",
+            "* Es hora de enfrentar tus miedos, Frisk.",
+            "* El mundo está lleno de maravillas por descubrir."
         ];
 
         function getRandomIAText() {
@@ -426,14 +415,14 @@
 
         // ---- Sonido de diálogo ----
         function playTalkSound() {
-            if (loadedAssets.audio.talk) {
+            if (loadedAssets.audio.talkSound) {
                 try {
-                    const audio = loadedAssets.audio.talk.cloneNode();
+                    const audio = loadedAssets.audio.talkSound.cloneNode();
                     audio.volume = 0.2;
                     audio.play().catch(() => {});
                 } catch(e) {}
             } else {
-                // Fallback: oscilador
+                // Fallback
                 try {
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const osc = audioCtx.createOscillator();
@@ -538,7 +527,6 @@
                 state.moving = false;
             }
 
-            // Si opuestos, se queda quieto
             if ((up && down) || (left && right)) {
                 state.moving = false;
             }
@@ -740,7 +728,8 @@
             }
         });
 
-        console.log('🎮 Undertale Frisk · Cargando assets desde GitHub...');
+        console.log('🎮 Undertale Frisk · Coloca todos los archivos en la misma carpeta que este HTML');
+        console.log('📁 Archivos necesarios:', ASSET_LIST.map(a => a.path).join(', '));
     })();
 </script>
 </body>
