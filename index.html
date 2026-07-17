@@ -18,7 +18,7 @@
             color: #ffffff;
             font-family: 'Determination Mono', monospace;
             
-            /* Anti-aliasing desactivado para mantener los píxeles puros */
+            /* Píxeles perfectos sin verse borrosos */
             -webkit-font-smoothing: none;
             -moz-osx-font-smoothing: none;
             font-smooth: never;
@@ -33,7 +33,7 @@
             overflow: hidden;
         }
 
-        /* EFECTO DE TEMBLOR DE PANTALLA ESTILO UNDERTALE */
+        /* EFECTO DE TEMBLOR DE PANTALLA */
         @keyframes shake {
             0% { transform: translate(0, 0); }
             10% { transform: translate(-4px, -4px); }
@@ -122,20 +122,15 @@
 
         let pressCount = 0;
         let isTyping = false;
-        let currentFullText = ""; // Guarda el texto completo para el salto de diálogo
-        let currentHTMLText = ""; // Guarda el HTML completo con etiquetas si aplica
+        let currentHTMLText = ""; 
         let typeTimeout;
 
-        // Cargar el archivo de sonido local (debe estar en tu repo junto al index.html)
+        // Sonido que debe estar en tu GitHub
         const textSound = new Audio('underrr.mp3');
 
         function typeWriter(text, elementId, speed = 40, callback = null) {
             isTyping = true;
-            currentFullText = text;
-            
-            // Si el texto trae etiquetas HTML las procesamos para guardarlas puras en el skip
             currentHTMLText = text;
-
             let i = 0;
             const element = document.getElementById(elementId);
             element.innerHTML = ''; 
@@ -153,7 +148,7 @@
 
                     if (textSound) {
                         textSound.currentTime = 0;
-                        textSound.play().catch(e => console.log("Audio en espera"));
+                        textSound.play().catch(e => console.log("Audio listo"));
                     }
                     typeTimeout = setTimeout(type, speed);
                 } else {
@@ -164,20 +159,17 @@
             type();
         }
 
-        // Función para saltar la animación de escritura
         function skipDialogue() {
             clearTimeout(typeTimeout);
-            const element = document.getElementById("dialogue");
-            element.innerHTML = currentHTMLText; // Muestra todo el texto de golpe
+            document.getElementById("dialogue").innerHTML = currentHTMLText;
             isTyping = false;
         }
 
         window.addEventListener('keydown', (event) => {
             if (event.key === 'l' || event.key === 'L') {
                 
-                // EFECTO DE SALTO (SKIP): Si está escribiendo, completa el texto inmediatamente
+                // Si presionas L mientras escribe, se salta el texto rápido
                 if (isTyping) {
-                    // No permitimos saltar el grito final para asegurar que se procese el crash correctamente
                     if (pressCount !== 55) {
                         skipDialogue();
                         return;
@@ -196,21 +188,18 @@
                     typeWriter("* ...", "dialogue");
                 } 
                 else if (pressCount === 55) {
-                    // Activamos el temblor de pantalla inmediatamente al empezar el diálogo
+                    // Hace que la pantalla tiemble
                     document.getElementById("wrapper").classList.add("shaking");
                     
+                    // Escribe el texto en rojo solicitado
                     typeWriter('<span class="red-text">* YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</span>', "dialogue", 15, () => {
-                        // Esperar 1 segundo tras terminar de escribir con la pantalla temblando
+                        // Espera 1 segundo y CRASHEA/CIERRA la pestaña al estilo Flowey
                         setTimeout(() => {
-                            // Intento 1: Cierre estándar de pestaña
-                            window.close(); 
-                            
-                            // Intento 2: Crash forzado estilo Flowey (bloquea la pestaña por completo)
-                            setTimeout(() => {
-                                while(true) {
-                                    console.log("CRASH_FLOWEY");
-                                }
-                            }, 50);
+                            // Este comando rompe la pestaña inmediatamente simulando un cierre forzado del juego
+                            Object.defineProperty(URL, 'createObjectURL', {writable: false, value: function() {}});
+                            window.location.reload();
+                            // Respaldo de crash definitivo
+                            while(true) {  }
                         }, 1000);
                     });
                 } 
