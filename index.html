@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Undertale Easter Egg</title>
     <style>
-        /* Carga de la fuente pixelada Determination Mono */
+        /* IMPORTACIÓN DIRECTA DE DETERMINATION MONO */
         @font-face {
             font-family: 'Determination Mono';
             src: url('https://jsdelivr.net') format('woff');
@@ -17,6 +17,13 @@
             background-color: #000000;
             color: #ffffff;
             font-family: 'Determination Mono', monospace;
+            
+            /* Anti-aliasing desactivado para mantener los píxeles puros */
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: none;
+            font-smooth: never;
+            rendering: crisp-edges;
+
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,6 +31,25 @@
             margin: 0;
             user-select: none;
             overflow: hidden;
+        }
+
+        /* EFECTO DE TEMBLOR DE PANTALLA ESTILO UNDERTALE */
+        @keyframes shake {
+            0% { transform: translate(0, 0); }
+            10% { transform: translate(-4px, -4px); }
+            20% { transform: translate(4px, 2px); }
+            30% { transform: translate(-4px, 4px); }
+            40% { transform: translate(4px, -2px); }
+            50% { transform: translate(-2px, 4px); }
+            60% { transform: translate(4px, 4px); }
+            70% { transform: translate(-4px, -2px); }
+            80% { transform: translate(2px, -4px); }
+            90% { transform: translate(-4px, 2px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .shaking {
+            animation: shake 0.15s infinite;
         }
 
         .dialogue-container {
@@ -38,41 +64,44 @@
         }
 
         .text-content {
-            font-size: 28px;
+            font-family: 'Determination Mono', monospace;
+            font-size: 32px; 
             line-height: 1.4;
             white-space: pre-wrap;
             word-wrap: break-word;
+            letter-spacing: 0.5px;
         }
 
-        /* Estilos específicos pedidos */
         .yellow-text {
             color: #ffff00;
-            font-weight: bold;
+            font-family: 'Determination Mono', monospace;
         }
 
         .red-text {
             color: #ff0000;
-            font-weight: bold;
+            font-family: 'Determination Mono', monospace;
+            text-transform: uppercase;
         }
 
         .hint {
             position: absolute;
             bottom: 8px;
             right: 12px;
-            font-size: 14px;
+            font-size: 16px;
             color: #555555;
+            font-family: 'Determination Mono', monospace;
         }
     </style>
 </head>
 <body>
 
-    <div class="dialogue-container">
+    <div id="wrapper" class="dialogue-container">
         <div id="dialogue" class="text-content">* Presiona la tecla L para comenzar...</div>
         <div class="hint">Presiona L</div>
     </div>
 
     <script>
-        // Banco de diálogos variados de Undertale (Secretos, tips, lore)
+        // Banco de diálogos variados de Undertale
         const undertaleQuotes = [
             "* Mantente determinado.",
             "* Realmente eres un flojo de primera.",
@@ -93,21 +122,26 @@
 
         let pressCount = 0;
         let isTyping = false;
+        let currentFullText = ""; // Guarda el texto completo para el salto de diálogo
+        let currentHTMLText = ""; // Guarda el HTML completo con etiquetas si aplica
         let typeTimeout;
 
-        // Cargar el archivo de sonido local de tu repositorio
+        // Cargar el archivo de sonido local (debe estar en tu repo junto al index.html)
         const textSound = new Audio('underrr.mp3');
 
-        // Función para simular la escritura de Undertale carácter por carácter
         function typeWriter(text, elementId, speed = 40, callback = null) {
             isTyping = true;
+            currentFullText = text;
+            
+            // Si el texto trae etiquetas HTML las procesamos para guardarlas puras en el skip
+            currentHTMLText = text;
+
             let i = 0;
             const element = document.getElementById(elementId);
-            element.innerHTML = ''; // Limpiar texto anterior
+            element.innerHTML = ''; 
 
             function type() {
                 if (i < text.length) {
-                    // Si el texto contiene marcado HTML lo procesamos correctamente
                     if (text.substring(i, i + 1) === '<') {
                         let closingTagIndex = text.indexOf('>', i);
                         element.innerHTML += text.substring(i, closingTagIndex + 1);
@@ -117,10 +151,9 @@
                         i++;
                     }
 
-                    // Reproducir sonido "underrr.mp3" rebobinando rápidamente
                     if (textSound) {
                         textSound.currentTime = 0;
-                        textSound.play().catch(e => console.log("Audio esperando interacción"));
+                        textSound.play().catch(e => console.log("Audio en espera"));
                     }
                     typeTimeout = setTimeout(type, speed);
                 } else {
@@ -131,13 +164,25 @@
             type();
         }
 
-        // Listener de teclado
+        // Función para saltar la animación de escritura
+        function skipDialogue() {
+            clearTimeout(typeTimeout);
+            const element = document.getElementById("dialogue");
+            element.innerHTML = currentHTMLText; // Muestra todo el texto de golpe
+            isTyping = false;
+        }
+
         window.addEventListener('keydown', (event) => {
-            // Validar si presionó la tecla L (Mayúscula o minúscula)
             if (event.key === 'l' || event.key === 'L') {
                 
-                // Si el script ya está escribiendo, ignorar la pulsación rápida para no superponer texto
-                if (isTyping) return; 
+                // EFECTO DE SALTO (SKIP): Si está escribiendo, completa el texto inmediatamente
+                if (isTyping) {
+                    // No permitimos saltar el grito final para asegurar que se procese el crash correctamente
+                    if (pressCount !== 55) {
+                        skipDialogue();
+                        return;
+                    }
+                } 
 
                 pressCount++;
 
@@ -145,24 +190,31 @@
                     typeWriter("* ...", "dialogue");
                 } 
                 else if (pressCount === 51) {
-                    // Resaltar la letra L en amarillo usando HTML interno
                     typeWriter('* ¿Porqué presionas muchas veces la <span class="yellow-text">L</span>?', "dialogue");
                 } 
                 else if (pressCount >= 52 && pressCount <= 54) {
                     typeWriter("* ...", "dialogue");
                 } 
                 else if (pressCount === 55) {
-                    // Texto en rojo chillón y cierre de pestaña 1 segundo después
-                    typeWriter('<span class="red-text">* YAAAAAAAAAAAAAAAAAA</span>', "dialogue", 20, () => {
+                    // Activamos el temblor de pantalla inmediatamente al empezar el diálogo
+                    document.getElementById("wrapper").classList.add("shaking");
+                    
+                    typeWriter('<span class="red-text">* YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</span>', "dialogue", 15, () => {
+                        // Esperar 1 segundo tras terminar de escribir con la pantalla temblando
                         setTimeout(() => {
-                            window.close();
-                            // Alternativa por si el navegador bloquea window.close()
-                            document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20vh;">PÁGINA DESTRUIDA</h1>';
+                            // Intento 1: Cierre estándar de pestaña
+                            window.close(); 
+                            
+                            // Intento 2: Crash forzado estilo Flowey (bloquea la pestaña por completo)
+                            setTimeout(() => {
+                                while(true) {
+                                    console.log("CRASH_FLOWEY");
+                                }
+                            }, 50);
                         }, 1000);
                     });
                 } 
                 else if (pressCount < 50) {
-                    // Diálogos normales aleatorios antes del contador 50
                     const randomIndex = Math.floor(Math.random() * undertaleQuotes.length);
                     typeWriter(undertaleQuotes[randomIndex], "dialogue");
                 }
