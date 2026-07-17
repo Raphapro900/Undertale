@@ -3,937 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Undertale · Frisk</title>
+    <title>Undertale Easter Egg</title>
     <style>
+        /* Carga de la fuente pixelada Determination Mono */
         @font-face {
             font-family: 'Determination Mono';
-            src: url('https://cdn.jsdelivr.net/gh/Undertale-Resources/DTM-Mono/DTM-Mono.woff2') format('woff2'),
-                 url('https://cdn.jsdelivr.net/gh/Undertale-Resources/DTM-Mono/DTM-Mono.woff') format('woff');
+            src: url('https://jsdelivr.net') format('woff');
             font-weight: normal;
             font-style: normal;
         }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-        }
+
         body {
-            background: #0a0a0a;
-            min-height: 100vh;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Determination Mono', monospace;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Determination Mono', monospace;
-        }
-        #game-wrapper {
-            position: relative;
-            width: 800px;
-            height: 600px;
-            border: 4px solid #4a4a4a;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+            height: 100vh;
+            margin: 0;
+            user-select: none;
             overflow: hidden;
-            background-color: #1a1a2e;
         }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            image-rendering: pixelated;
-            background: #1a1a2e;
-            cursor: default;
+
+        .dialogue-container {
+            border: 4px solid #ffffff;
+            padding: 24px;
+            width: 80%;
+            max-width: 600px;
+            min-height: 120px;
+            background-color: #000000;
+            box-sizing: border-box;
+            position: relative;
         }
-        #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        #pause-menu {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.85);
-            border: 2px solid #f0e6d0;
-            border-radius: 16px;
-            padding: 24px 36px;
-            color: #f0e6d0;
-            font-size: 20px;
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-            min-width: 260px;
-            pointer-events: auto;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 0 40px rgba(255, 215, 0, 0.2);
-            text-shadow: 2px 2px 0 #3a2a1a;
-            font-family: 'Determination Mono', monospace;
-        }
-        #pause-menu.active {
-            display: flex;
-        }
-        #pause-menu .title {
+
+        .text-content {
             font-size: 28px;
-            text-align: center;
-            border-bottom: 2px solid #b8a080;
-            padding-bottom: 10px;
-            margin-bottom: 6px;
-            letter-spacing: 2px;
-            color: #ffd78a;
-        }
-        .menu-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 8px;
-            border-bottom: 1px solid #3a2a1a;
-            cursor: pointer;
-            transition: 0.1s;
-        }
-        .menu-row:hover {
-            background: #3a2a1a;
-            color: #ffd78a;
-        }
-        .menu-row .key-hint {
-            color: #8a7a6a;
-            font-size: 14px;
-        }
-        #exit-prompt {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            color: #f0e6d0;
-            font-size: 28px;
-            text-shadow: 2px 2px 0 #1a0a0a;
-            letter-spacing: 2px;
-            background: rgba(0,0,0,0.4);
-            padding: 4px 14px;
-            border-radius: 30px;
-            backdrop-filter: blur(2px);
-            display: none;
-            pointer-events: none;
-            border: 1px solid #b8a080;
-            font-family: 'Determination Mono', monospace;
-        }
-        /* === ESTILO DE DIÁLOGO ESTILO UNDERTALE === */
-        #text-box {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 85%;
-            max-width: 680px;
-            background: black;
-            border: 3px solid white;
-            padding: 18px 24px;
-            color: white;
-            font-family: 'Determination Mono', monospace;
-            font-size: 22px;
-            display: none;
-            pointer-events: auto;
-            min-height: 80px;
-            align-items: center;
-            box-shadow: 0 0 20px rgba(255,255,255,0.05);
-            letter-spacing: 0.5px;
             line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
-        #text-box .text-content {
-            width: 100%;
-            word-break: break-word;
+
+        /* Estilos específicos pedidos */
+        .yellow-text {
+            color: #ffff00;
+            font-weight: bold;
         }
-        #text-box .skip-hint {
+
+        .red-text {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        .hint {
             position: absolute;
-            right: 18px;
             bottom: 8px;
-            font-size: 13px;
-            color: #666;
-            font-family: 'Determination Mono', monospace;
-        }
-        #text-box.active {
-            display: flex;
-        }
-        /* === FIN ESTILO DIÁLOGO === */
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #f0e6d0;
-            font-size: 24px;
-            text-align: center;
-            z-index: 10;
-            background: rgba(0,0,0,0.85);
-            padding: 30px 50px;
-            border-radius: 20px;
-            border: 2px solid #f0e6d0;
-            min-width: 300px;
-            font-family: 'Determination Mono', monospace;
-        }
-        #loading .spinner {
-            display: inline-block;
-            width: 30px;
-            height: 30px;
-            border: 4px solid #f0e6d0;
-            border-top: 4px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 15px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        #loading .status-detail {
+            right: 12px;
             font-size: 14px;
-            color: #8a7a6a;
-            margin-top: 8px;
-        }
-        #loading .error-list {
-            font-size: 12px;
-            color: #ff6b6b;
-            margin-top: 10px;
-            max-height: 100px;
-            overflow-y: auto;
-        }
-        #gamepad-status {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: #4a4a5e;
-            font-size: 12px;
-            font-family: 'Determination Mono', monospace;
-            pointer-events: none;
-            opacity: 0.5;
+            color: #555555;
         }
     </style>
 </head>
 <body>
-<div id="game-wrapper">
-    <div id="loading">
-        <div class="spinner"></div>
-        <div>Cargando recursos...</div>
-        <div class="status-detail" id="load-status">0/9 archivos</div>
-        <div class="error-list" id="error-list"></div>
-    </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="ui-layer">
-        <div id="pause-menu">
-            <div class="title">☀ PAUSA</div>
-            <div class="menu-row">Idioma <span class="key-hint">(ES)</span></div>
-            <div class="menu-row">Volumen <span class="key-hint">🔊</span></div>
-            <div class="menu-row">Diálogos <span class="key-hint">📖</span></div>
-            <div class="menu-row">SFX <span class="key-hint">🔘</span></div>
-            <div class="menu-row">Activar WASD <span class="key-hint">[W A S D]</span></div>
-        </div>
-        <div id="exit-prompt">Saliendo<span id="exitDots">.</span></div>
-        <!-- CUADRO DE DIÁLOGO ESTILO UNDERTALE -->
-        <div id="text-box">
-            <div class="text-content" id="dialogueText">* Hola, soy un texto de IA.</div>
-            <div class="skip-hint">[Shift: saltar] [Enter: cerrar]</div>
-        </div>
-        <div id="gamepad-status">🎮 Mando: Desconectado</div>
-    </div>
-</div>
 
-<script>
-    (function(){
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const loading = document.getElementById('loading');
-        const loadStatus = document.getElementById('load-status');
-        const errorList = document.getElementById('error-list');
-        const gamepadStatus = document.getElementById('gamepad-status');
+    <div class="dialogue-container">
+        <div id="dialogue" class="text-content">* Presiona la tecla L para comenzar...</div>
+        <div class="hint">Presiona L</div>
+    </div>
 
-        // ---- Lista de assets con sus rutas relativas ----
-        const ASSET_LIST = [
-            // Sprites de Frisk (carpeta Frisk)
-            { id: 'downIdle', path: 'Frisk/Frisk_abajoAFK.webp', type: 'image' },
-            { id: 'downWalk', path: 'Frisk/Frisk_AbajoCaminar.gif', type: 'image' },
-            { id: 'upWalk', path: 'Frisk/Frisk_ArribaCaminar.gif', type: 'image' },
-            { id: 'rightWalk', path: 'Frisk/Frisk_DerechaCaminar.gif', type: 'image' },
-            { id: 'rightIdle', path: 'Frisk/Frisk_DerechaAFK.webp', type: 'image' },
-            { id: 'upIdle', path: 'Frisk/Frisk_ArribaAFK.webp', type: 'image' },
-            // Fondo (carpeta Imagenes)
-            { id: 'background', path: 'Imagenes/Fondo.png', type: 'image' },
-            // Sonidos (carpeta Sonido - SIN la S al final)
-            { id: 'music', path: 'Sonido/Fondooo.mp3', type: 'audio' },
-            { id: 'talkSound', path: 'Sonido/Talkk.mp3', type: 'audio' }
+    <script>
+        // Banco de diálogos variados de Undertale (Secretos, tips, lore)
+        const undertaleQuotes = [
+            "* Mantente determinado.",
+            "* Realmente eres un flojo de primera.",
+            "* ¿Quieres pasar un mal rato?",
+            "* En este mundo, es MATAR o MORIR.",
+            "* Cocinar con Undyne es un peligro de incendio real.",
+            "* TIP: Si un ataque es azul, no te muevas.",
+            "* TIP: Si un ataque es naranja, muévete a través de él.",
+            "* DETALLE: W.D. Gaster vigila desde los archivos borrados.",
+            "* A Papyrus le encantan los rompecabezas, pero nunca ha probado el spaghetti.",
+            "* Si perdonas a todos, verás la luz del sol.",
+            "* Aunque cambies de ruta, tus pecados no se borrarán.",
+            "* ¿Huele a tierra húmeda... o a consecuencias?",
+            "* Tocar el piano en Waterfall revela una puerta secreta.",
+            "* Comer la tarta de Toriel en la batalla de Asgore debilita su ataque.",
+            "* Vender cosas a Temmie es la única forma de conseguir oro fácil."
         ];
 
-        const loadedAssets = { images: {}, audio: {} };
-        let loadedCount = 0;
-        const totalAssets = ASSET_LIST.length;
-        const errors = [];
+        let pressCount = 0;
+        let isTyping = false;
+        let typeTimeout;
 
-        function updateLoadStatus() {
-            loadStatus.textContent = `${loadedCount}/${totalAssets} archivos`;
-            if (errors.length > 0) {
-                errorList.innerHTML = errors.map(e => `❌ ${e}`).join('<br>');
-            }
-        }
+        // Cargar el archivo de sonido local de tu repositorio
+        const textSound = new Audio('underrr.mp3');
 
-        // ---- Funciones de carga con manejo de dimensiones ----
-        function loadImage(path) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Asegurar que la imagen tenga dimensiones válidas
-                    if (img.width === 0 || img.height === 0) {
-                        img.width = 32;
-                        img.height = 48;
+        // Función para simular la escritura de Undertale carácter por carácter
+        function typeWriter(text, elementId, speed = 40, callback = null) {
+            isTyping = true;
+            let i = 0;
+            const element = document.getElementById(elementId);
+            element.innerHTML = ''; // Limpiar texto anterior
+
+            function type() {
+                if (i < text.length) {
+                    // Si el texto contiene marcado HTML lo procesamos correctamente
+                    if (text.substring(i, i + 1) === '<') {
+                        let closingTagIndex = text.indexOf('>', i);
+                        element.innerHTML += text.substring(i, closingTagIndex + 1);
+                        i = closingTagIndex + 1;
+                    } else {
+                        element.innerHTML += text.charAt(i);
+                        i++;
                     }
-                    resolve(img);
-                };
-                img.onerror = () => {
-                    errors.push(`No se pudo cargar: ${path}`);
-                    // Crear imagen de respaldo con dimensiones correctas
-                    const fallback = new Image();
-                    fallback.width = 32;
-                    fallback.height = 48;
-                    // Dibujar un sprite de respaldo en un canvas
-                    const c = document.createElement('canvas');
-                    c.width = 32;
-                    c.height = 48;
-                    const cx = c.getContext('2d');
-                    cx.fillStyle = '#b8a090';
-                    cx.fillRect(0, 0, 32, 48);
-                    cx.strokeStyle = '#2a1a0a';
-                    cx.lineWidth = 2;
-                    cx.strokeRect(2, 2, 28, 44);
-                    cx.fillStyle = '#1a0a0a';
-                    cx.font = '9px monospace';
-                    cx.textAlign = 'center';
-                    cx.textBaseline = 'middle';
-                    const label = path.split('/').pop().replace(/\.[^.]+$/, '');
-                    cx.fillText(label.substring(0, 6), 16, 24);
-                    fallback.src = c.toDataURL();
-                    resolve(fallback);
-                };
-                img.src = path;
-            });
-        }
 
-        function loadAudio(path) {
-            return new Promise((resolve) => {
-                const audio = new Audio();
-                audio.preload = 'auto';
-                
-                const handleCanPlay = () => {
-                    audio.removeEventListener('canplaythrough', handleCanPlay);
-                    audio.removeEventListener('loadeddata', handleCanPlay);
-                    resolve(audio);
-                };
-                
-                audio.addEventListener('canplaythrough', handleCanPlay);
-                audio.addEventListener('loadeddata', handleCanPlay);
-                
-                audio.onerror = () => {
-                    errors.push(`No se pudo cargar audio: ${path}`);
-                    // Crear audio de respaldo (silencio)
-                    const fallbackAudio = new Audio();
-                    fallbackAudio.volume = 0;
-                    resolve(fallbackAudio);
-                };
-                
-                audio.src = path;
-                audio.load();
-                
-                // Timeout por si tarda mucho
-                setTimeout(() => {
-                    if (!audio.duration) {
-                        audio.removeEventListener('canplaythrough', handleCanPlay);
-                        audio.removeEventListener('loadeddata', handleCanPlay);
-                        resolve(audio);
+                    // Reproducir sonido "underrr.mp3" rebobinando rápidamente
+                    if (textSound) {
+                        textSound.currentTime = 0;
+                        textSound.play().catch(e => console.log("Audio esperando interacción"));
                     }
-                }, 5000);
-            });
-        }
-
-        // ---- Crear sprites de respaldo ----
-        function createFallbackSprite(label, color = '#b8a090') {
-            const c = document.createElement('canvas');
-            c.width = 32;
-            c.height = 48;
-            const cx = c.getContext('2d');
-            cx.fillStyle = color;
-            cx.fillRect(0, 0, 32, 48);
-            cx.strokeStyle = '#2a1a0a';
-            cx.lineWidth = 2;
-            cx.strokeRect(2, 2, 28, 44);
-            cx.fillStyle = '#1a0a0a';
-            cx.font = '9px monospace';
-            cx.textAlign = 'center';
-            cx.textBaseline = 'middle';
-            cx.fillText(label || 'Frisk', 16, 24);
-            return c;
-        }
-
-        function flipImage(img) {
-            const canvas = document.createElement('canvas');
-            const width = img.width || 32;
-            const height = img.height || 48;
-            canvas.width = width;
-            canvas.height = height;
-            const c = canvas.getContext('2d');
-            c.translate(width, 0);
-            c.scale(-1, 1);
-            c.drawImage(img, 0, 0, width, height);
-            return canvas;
-        }
-
-        // ---- Cargar todos los assets ----
-        async function loadAllAssets() {
-            const loadPromises = ASSET_LIST.map(async (asset) => {
-                if (asset.type === 'image') {
-                    const img = await loadImage(asset.path);
-                    loadedAssets.images[asset.id] = img;
-                } else if (asset.type === 'audio') {
-                    const audio = await loadAudio(asset.path);
-                    loadedAssets.audio[asset.id] = audio;
-                    if (asset.id === 'music') {
-                        loadedAssets.audio[asset.id].loop = true;
-                        loadedAssets.audio[asset.id].volume = 0.3;
-                    }
-                }
-                loadedCount++;
-                updateLoadStatus();
-            });
-
-            await Promise.all(loadPromises);
-
-            // Generar sprites de izquierda (volteando derecha)
-            if (loadedAssets.images.rightIdle) {
-                loadedAssets.images.leftIdle = flipImage(loadedAssets.images.rightIdle);
-            } else {
-                loadedAssets.images.leftIdle = createFallbackSprite('← AFK', '#b8a090');
-            }
-            if (loadedAssets.images.rightWalk) {
-                loadedAssets.images.leftWalk = flipImage(loadedAssets.images.rightWalk);
-            } else {
-                loadedAssets.images.leftWalk = createFallbackSprite('← WALK', '#b8a090');
-            }
-            loadedCount += 2;
-            updateLoadStatus();
-
-            // Ocultar loading después de 1 segundo
-            setTimeout(() => {
-                loading.style.display = 'none';
-            }, 1000);
-
-            // Iniciar música (con retraso para asegurar que el audio esté listo)
-            setTimeout(() => {
-                if (loadedAssets.audio.music && loadedAssets.audio.music.duration > 0) {
-                    try {
-                        loadedAssets.audio.music.play().catch(() => {});
-                    } catch(e) {}
-                }
-            }, 500);
-
-            // Iniciar el juego
-            gameLoop();
-        }
-
-        // ---- Estado del juego ----
-        const state = {
-            x: 380, y: 280,
-            dir: 'down',
-            moving: false,
-            frame: 0,
-            paused: false,
-            dialogueActive: false,
-            dialogueText: '',
-            dialogueFull: '',
-            dialogueIndex: 0,
-            dialogueTimer: 0,
-            skipPressed: false,
-            exitTimer: 0,
-            exitActive: false,
-            wasd: false,
-            keys: {
-                ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-                w: false, a: false, s: false, d: false, Escape: false,
-                gamepadUp: false, gamepadDown: false, gamepadLeft: false, gamepadRight: false,
-                gamepadA: false, gamepadB: false, gamepadStart: false, gamepadSelect: false
-            },
-            gamepadConnected: false
-        };
-
-        // ---- Estado del mando ----
-        let gamepadIndex = null;
-        let previousGamepadState = {};
-
-        // ---- Diálogos IA ----
-        const iaMessages = [
-            "* La inteligencia artificial es como una estrella en el cosmos digital.",
-            "* Cada píxel de este mundo tiene una historia que contar.",
-            "* La determinación es el alma de todo viajero.",
-            "* En el subsuelo, el tiempo se mide en latidos de corazón.",
-            "* Frisk, el poder de la amistad trasciende cualquier código.",
-            "* Sans siempre dice: 'estás teniendo un mal momento, ¿verdad?'",
-            "* El amor y la compasión son el verdadero motor del universo.",
-            "* Este texto ha sido generado por una IA con mucho cariño.",
-            "* But nobody came.",
-            "* Es hora de enfrentar tus miedos, Frisk.",
-            "* El mundo está lleno de maravillas por descubrir."
-        ];
-
-        function getRandomIAText() {
-            return iaMessages[Math.floor(Math.random() * iaMessages.length)];
-        }
-
-        // ---- Sonido de diálogo ----
-        function playTalkSound() {
-            if (loadedAssets.audio.talkSound && loadedAssets.audio.talkSound.duration > 0) {
-                try {
-                    const audio = loadedAssets.audio.talkSound.cloneNode();
-                    audio.volume = 0.2;
-                    audio.play().catch(() => {});
-                } catch(e) {}
-            } else {
-                // Fallback: oscilador
-                try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(400 + Math.random()*200, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.08);
-                } catch(e) {}
-            }
-        }
-
-        // ---- Manejo del mando (Gamepad API) ----
-        function updateGamepad() {
-            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-            
-            let connected = false;
-            for (let i = 0; i < gamepads.length; i++) {
-                const gp = gamepads[i];
-                if (gp) {
-                    gamepadIndex = i;
-                    connected = true;
-                    break;
+                    typeTimeout = setTimeout(type, speed);
+                } else {
+                    isTyping = false;
+                    if (callback) callback();
                 }
             }
-
-            if (!connected) {
-                if (state.gamepadConnected) {
-                    state.gamepadConnected = false;
-                    gamepadStatus.textContent = '🎮 Mando: Desconectado';
-                    gamepadStatus.style.color = '#4a4a5e';
-                    state.keys.gamepadUp = false;
-                    state.keys.gamepadDown = false;
-                    state.keys.gamepadLeft = false;
-                    state.keys.gamepadRight = false;
-                    state.keys.gamepadA = false;
-                    state.keys.gamepadB = false;
-                    state.keys.gamepadStart = false;
-                    state.keys.gamepadSelect = false;
-                }
-                return;
-            }
-
-            const gp = gamepads[gamepadIndex];
-            if (!gp) return;
-
-            if (!state.gamepadConnected) {
-                state.gamepadConnected = true;
-                gamepadStatus.textContent = `🎮 Mando: ${gp.id || 'Conectado'}`;
-                gamepadStatus.style.color = '#8f8';
-            }
-
-            const buttons = gp.buttons;
-            const axes = gp.axes;
-
-            const deadZone = 0.2;
-            const axisX = axes[0] || 0;
-            const axisY = axes[1] || 0;
-
-            const stickUp = axisY < -deadZone;
-            const stickDown = axisY > deadZone;
-            const stickLeft = axisX < -deadZone;
-            const stickRight = axisX > deadZone;
-
-            const dpadUp = buttons[12] ? buttons[12].pressed : false;
-            const dpadDown = buttons[13] ? buttons[13].pressed : false;
-            const dpadLeft = buttons[14] ? buttons[14].pressed : false;
-            const dpadRight = buttons[15] ? buttons[15].pressed : false;
-
-            state.keys.gamepadUp = stickUp || dpadUp;
-            state.keys.gamepadDown = stickDown || dpadDown;
-            state.keys.gamepadLeft = stickLeft || dpadLeft;
-            state.keys.gamepadRight = stickRight || dpadRight;
-
-            const aPressed = buttons[0] ? buttons[0].pressed : false;
-            const bPressed = buttons[1] ? buttons[1].pressed : false;
-            const startPressed = buttons[9] ? buttons[9].pressed : false;
-            const selectPressed = buttons[8] ? buttons[8].pressed : false;
-
-            const previous = previousGamepadState;
-            
-            if (aPressed && !previous.a) {
-                if (!state.dialogueActive && !state.paused && !state.exitActive) {
-                    startDialogue();
-                } else if (state.dialogueActive) {
-                    closeDialogue();
-                }
-            }
-
-            if (bPressed && !previous.b) {
-                if (state.dialogueActive) {
-                    closeDialogue();
-                }
-            }
-
-            if (startPressed && !previous.start) {
-                if (!state.exitActive) {
-                    togglePause();
-                }
-            }
-
-            if (selectPressed && !previous.select) {
-                state.wasd = !state.wasd;
-            }
-
-            previousGamepadState = {
-                a: aPressed,
-                b: bPressed,
-                start: startPressed,
-                select: selectPressed
-            };
+            type();
         }
 
-        // ---- Dibujo ----
-        function draw() {
-            ctx.clearRect(0, 0, 800, 600);
-            
-            // Fondo
-            if (loadedAssets.images.background) {
-                ctx.drawImage(loadedAssets.images.background, 0, 0, 800, 600);
-            } else {
-                ctx.fillStyle = '#2a2a3e';
-                ctx.fillRect(0, 0, 800, 600);
-                ctx.fillStyle = '#4a4a5e';
-                for(let i=0; i<30; i++) {
-                    ctx.beginPath();
-                    ctx.arc(40+Math.random()*720, 40+Math.random()*520, 8+Math.random()*20, 0, Math.PI*2);
-                    ctx.fillStyle = `hsl(${200+Math.random()*40}, 50%, ${20+Math.random()*20}%)`;
-                    ctx.fill();
-                }
-                ctx.fillStyle = '#8a7a5a';
-                ctx.font = 'bold 20px monospace';
-                ctx.fillText('★ UNDERGROUND ★', 280, 80);
-            }
-
-            // Personaje - dibujar con dimensiones fijas 32x48
-            const spriteKey = (() => {
-                const dirMap = {
-                    down: state.moving ? 'downWalk' : 'downIdle',
-                    up: state.moving ? 'upWalk' : 'upIdle',
-                    right: state.moving ? 'rightWalk' : 'rightIdle',
-                    left: state.moving ? 'leftWalk' : 'leftIdle'
-                };
-                return dirMap[state.dir] || 'downIdle';
-            })();
-            
-            const sprite = loadedAssets.images[spriteKey];
-            if (sprite) {
-                // Dibujar con dimensiones fijas para evitar bugs
-                ctx.drawImage(sprite, state.x-16, state.y-24, 32, 48);
-            } else {
-                // Fallback visual
-                ctx.fillStyle = '#b8a090';
-                ctx.fillRect(state.x-12, state.y-20, 24, 40);
-                ctx.fillStyle = '#1a0a0a';
-                ctx.font = '12px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText('Frisk', state.x, state.y);
-            }
-        }
-
-        // ---- Movimiento ----
-        function updateMovement() {
-            if (state.paused || state.dialogueActive || state.exitActive) return;
-
-            const k = state.keys;
-            const useWASD = state.wasd;
-            
-            const up = k.ArrowUp || (useWASD && k.w) || k.gamepadUp;
-            const down = k.ArrowDown || (useWASD && k.s) || k.gamepadDown;
-            const left = k.ArrowLeft || (useWASD && k.a) || k.gamepadLeft;
-            const right = k.ArrowRight || (useWASD && k.d) || k.gamepadRight;
-
-            let dx = 0, dy = 0;
-
-            if (up && !down) dy = -1;
-            else if (down && !up) dy = 1;
-            
-            if (right && !left) dx = 1;
-            else if (left && !right) dx = -1;
-
-            if (dx !== 0 || dy !== 0) {
-                if (dy < 0 && dx === 0) state.dir = 'up';
-                else if (dy > 0 && dx === 0) state.dir = 'down';
-                else if (dx < 0 && dy === 0) state.dir = 'left';
-                else if (dx > 0 && dy === 0) state.dir = 'right';
-                else if (dy < 0 && dx < 0) state.dir = 'left';
-                else if (dy < 0 && dx > 0) state.dir = 'right';
-                else if (dy > 0 && dx < 0) state.dir = 'left';
-                else if (dy > 0 && dx > 0) state.dir = 'right';
+        // Listener de teclado
+        window.addEventListener('keydown', (event) => {
+            // Validar si presionó la tecla L (Mayúscula o minúscula)
+            if (event.key === 'l' || event.key === 'L') {
                 
-                state.moving = true;
-                state.x += dx * 2.5;
-                state.y += dy * 2.5;
-                state.x = Math.min(780, Math.max(20, state.x));
-                state.y = Math.min(560, Math.max(40, state.y));
-                state.frame = (state.frame + 1) % 20;
-            } else {
-                state.moving = false;
-            }
+                // Si el script ya está escribiendo, ignorar la pulsación rápida para no superponer texto
+                if (isTyping) return; 
 
-            if ((up && down) || (left && right)) {
-                state.moving = false;
-            }
-        }
+                pressCount++;
 
-        // ---- Diálogo ----
-        function startDialogue() {
-            if (state.dialogueActive) return;
-            const msg = getRandomIAText();
-            state.dialogueFull = msg;
-            state.dialogueText = '';
-            state.dialogueIndex = 0;
-            state.dialogueActive = true;
-            state.dialogueTimer = 0;
-            document.getElementById('text-box').classList.add('active');
-            document.getElementById('dialogueText').innerText = '';
-            playTalkSound();
-        }
-
-        function updateDialogue() {
-            if (!state.dialogueActive) return;
-            const textEl = document.getElementById('dialogueText');
-
-            if (state.skipPressed) {
-                state.dialogueText = state.dialogueFull;
-                textEl.innerText = state.dialogueFull;
-                state.skipPressed = false;
-                return;
-            }
-
-            if (state.dialogueIndex < state.dialogueFull.length) {
-                state.dialogueTimer++;
-                if (state.dialogueTimer % 3 === 0) {
-                    state.dialogueText += state.dialogueFull[state.dialogueIndex];
-                    textEl.innerText = state.dialogueText;
-                    state.dialogueIndex++;
-                    playTalkSound();
-                }
-            }
-        }
-
-        function closeDialogue() {
-            state.dialogueActive = false;
-            document.getElementById('text-box').classList.remove('active');
-        }
-
-        // ---- Pausa ----
-        function togglePause() {
-            state.paused = !state.paused;
-            const menu = document.getElementById('pause-menu');
-            if (state.paused) {
-                menu.classList.add('active');
-                if (loadedAssets.audio.music) loadedAssets.audio.music.pause();
-            } else {
-                menu.classList.remove('active');
-                if (loadedAssets.audio.music) {
-                    loadedAssets.audio.music.play().catch(() => {});
-                }
-            }
-        }
-
-        // ---- Salir ----
-        function updateExit() {
-            if (state.exitActive) {
-                state.exitTimer++;
-                if (state.exitTimer > 20) {
-                    document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0a0a0a;color:#f0e6d0;font-family:monospace;font-size:40px;">👋 Hasta luego, Frisk.</div>';
-                    if (loadedAssets.audio.music) loadedAssets.audio.music.pause();
-                    return;
-                }
-                const dots = Math.min(3, Math.floor(state.exitTimer / 7));
-                document.getElementById('exitDots').innerText = '.'.repeat(dots);
-                return;
-            }
-
-            if (state.keys.Escape) {
-                state.exitTimer++;
-                if (state.exitTimer > 60) {
-                    state.exitActive = true;
-                    state.exitTimer = 0;
-                    document.getElementById('exit-prompt').style.display = 'block';
-                    document.getElementById('exitDots').innerText = '.';
-                }
-            } else {
-                state.exitTimer = 0;
-                if (!state.exitActive) {
-                    document.getElementById('exit-prompt').style.display = 'none';
-                }
-            }
-        }
-
-        // ---- Eventos de teclado ----
-        document.addEventListener('keydown', (e) => {
-            const key = e.key;
-            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key)) {
-                e.preventDefault();
-            }
-
-            if (key === 'Tab') {
-                e.preventDefault();
-                state.wasd = !state.wasd;
-                return;
-            }
-
-            if (key === 'Escape') {
-                e.preventDefault();
-                state.keys.Escape = true;
-                return;
-            }
-
-            if (key === 'l' || key === 'L') {
-                if (!state.dialogueActive && !state.paused && !state.exitActive) {
-                    startDialogue();
-                }
-                return;
-            }
-
-            if (key === 'Shift') {
-                state.skipPressed = true;
-                return;
-            }
-
-            if (key === 'Enter') {
-                if (state.dialogueActive) {
-                    closeDialogue();
-                    return;
-                }
-                return;
-            }
-
-            const k = key.toLowerCase();
-            if (k === 'arrowup' || k === 'w') { state.keys.ArrowUp = true; state.keys.w = true; }
-            if (k === 'arrowdown' || k === 's') { state.keys.ArrowDown = true; state.keys.s = true; }
-            if (k === 'arrowleft' || k === 'a') { state.keys.ArrowLeft = true; state.keys.a = true; }
-            if (k === 'arrowright' || k === 'd') { state.keys.ArrowRight = true; state.keys.d = true; }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            const key = e.key;
-            if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(key)) {
-                e.preventDefault();
-            }
-            if (key === 'Escape') {
-                state.keys.Escape = false;
-                if (!state.exitActive) {
-                    document.getElementById('exit-prompt').style.display = 'none';
-                    state.exitTimer = 0;
-                }
-                return;
-            }
-            if (key === 'Tab') return;
-
-            const k = key.toLowerCase();
-            if (k === 'arrowup' || k === 'w') { state.keys.ArrowUp = false; state.keys.w = false; }
-            if (k === 'arrowdown' || k === 's') { state.keys.ArrowDown = false; state.keys.s = false; }
-            if (k === 'arrowleft' || k === 'a') { state.keys.ArrowLeft = false; state.keys.a = false; }
-            if (k === 'arrowright' || k === 'd') { state.keys.ArrowRight = false; state.keys.d = false; }
-            if (k === 'shift') state.skipPressed = false;
-        });
-
-        // ---- Manejo de ESC para pausa ----
-        let escPressTime = 0;
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (!state.exitActive && !state.paused && !state.dialogueActive) {
-                    if (escPressTime === 0) escPressTime = Date.now();
+                if (pressCount === 50) {
+                    typeWriter("* ...", "dialogue");
+                } 
+                else if (pressCount === 51) {
+                    // Resaltar la letra L en amarillo usando HTML interno
+                    typeWriter('* ¿Porqué presionas muchas veces la <span class="yellow-text">L</span>?', "dialogue");
+                } 
+                else if (pressCount >= 52 && pressCount <= 54) {
+                    typeWriter("* ...", "dialogue");
+                } 
+                else if (pressCount === 55) {
+                    // Texto en rojo chillón y cierre de pestaña 1 segundo después
+                    typeWriter('<span class="red-text">* YAAAAAAAAAAAAAAAAAA</span>', "dialogue", 20, () => {
+                        setTimeout(() => {
+                            window.close();
+                            // Alternativa por si el navegador bloquea window.close()
+                            document.body.innerHTML = '<h1 style="color:red; text-align:center; margin-top:20vh;">PÁGINA DESTRUIDA</h1>';
+                        }, 1000);
+                    });
+                } 
+                else if (pressCount < 50) {
+                    // Diálogos normales aleatorios antes del contador 50
+                    const randomIndex = Math.floor(Math.random() * undertaleQuotes.length);
+                    typeWriter(undertaleQuotes[randomIndex], "dialogue");
                 }
             }
         });
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'Escape') {
-                const duration = Date.now() - escPressTime;
-                if (duration < 300 && !state.exitActive) {
-                    if (!state.paused) togglePause();
-                    else togglePause();
-                }
-                escPressTime = 0;
-            }
-        });
-
-        // ---- Bucle del juego ----
-        function gameLoop() {
-            updateGamepad();
-
-            if (!state.exitActive) {
-                updateMovement();
-                updateDialogue();
-                updateExit();
-            } else {
-                updateExit();
-            }
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        // ---- Detectar conexión de mandos ----
-        window.addEventListener('gamepadconnected', (e) => {
-            console.log('🎮 Mando conectado:', e.gamepad.id);
-            state.gamepadConnected = true;
-            gamepadIndex = e.gamepad.index;
-            gamepadStatus.textContent = `🎮 Mando: ${e.gamepad.id}`;
-            gamepadStatus.style.color = '#8f8';
-        });
-
-        window.addEventListener('gamepaddisconnected', (e) => {
-            console.log('🎮 Mando desconectado');
-            state.gamepadConnected = false;
-            gamepadStatus.textContent = '🎮 Mando: Desconectado';
-            gamepadStatus.style.color = '#4a4a5e';
-            state.keys.gamepadUp = false;
-            state.keys.gamepadDown = false;
-            state.keys.gamepadLeft = false;
-            state.keys.gamepadRight = false;
-            state.keys.gamepadA = false;
-            state.keys.gamepadB = false;
-            state.keys.gamepadStart = false;
-            state.keys.gamepadSelect = false;
-        });
-
-        // ---- Iniciar carga ----
-        loadAllAssets();
-
-        window.addEventListener('beforeunload', (e) => {
-            if (!state.exitActive) {
-                e.preventDefault();
-                e.returnValue = '';
-            }
-        });
-
-        console.log('🎮 Undertale Frisk · Estructura de carpetas:');
-        console.log('📁 Frisk/ - Sprites del personaje');
-        console.log('📁 Imagenes/ - Fondo.png');
-        console.log('📁 Sonido/ - Fondooo.mp3, Talkk.mp3 (SIN la S al final)');
-        console.log('🔤 Fuente Determination Mono desde CDN');
-    })();
-</script>
+    </script>
 </body>
 </html>
