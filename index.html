@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Undertale Easter Egg</title>
     <style>
-        /* ===== CARGA DE FUENTE DESDE OLIVERSPACE ===== */
+        /* ===== FUENTE PIXELADA (estilo Undertale) ===== */
         @font-face {
             font-family: 'Determination Mono';
             src: url('https://oliverspace.neocities.org/determination-mono.ttf') format('truetype');
@@ -14,7 +14,7 @@
             font-display: swap;
         }
 
-        /* ===== ESTILOS DEL CUADRO DE DIÁLOGO ESTILO UNDERTALE ===== */
+        /* ===== ESTILO DEL CUADRO (como el generador) ===== */
         body {
             background-color: #000000;
             display: flex;
@@ -27,46 +27,45 @@
             font-family: 'Determination Mono', 'Courier New', monospace;
         }
 
-        /* CUADRO PRINCIPAL - FONDO NEGRO CON BORDE BLANCO */
-        .dialogue-box {
-            position: relative;
+        /* CONTENEDOR PRINCIPAL - simula el cuadro del generador */
+        .dialogue-wrapper {
             background-color: #000000;
-            border: 4px solid #ffffff;
-            padding: 20px 24px;
-            margin: 0 auto;
-            box-sizing: border-box;
-            min-height: 100px;
-            width: 80%;
+            border: 6px solid #ffffff;
+            padding: 24px 28px;
+            min-width: 320px;
             max-width: 600px;
-            text-align: left;
-            overflow: hidden;
-            font-family: 'Determination Mono', 'Courier New', monospace;
+            width: 85%;
+            position: relative;
+            box-shadow: 0 0 0 2px #000000, 0 0 0 4px #ffffff; /* Efecto de borde doble */
         }
 
-        /* CONTENEDOR DEL TEXTO */
-        .dialogue-box p {
-            margin: 0;
-            padding: 0;
+        /* TEXTO DEL DIÁLOGO */
+        .dialogue-text {
             color: #ffffff;
+            font-family: 'Determination Mono', 'Courier New', monospace;
             font-size: 28px;
             line-height: 1.5;
+            margin: 0;
+            padding: 0;
             white-space: pre-wrap;
             word-wrap: break-word;
-            font-family: 'Determination Mono', 'Courier New', monospace;
             letter-spacing: 0.5px;
-            text-shadow: none;
+            min-height: 80px;
         }
 
-        /* NOMBRE DEL PERSONAJE (opcional, como en Undertale) */
+        /* NOMBRE DEL PERSONAJE (opcional) */
         .speaker-name {
             color: #ffffff;
-            font-size: 22px;
-            margin-bottom: 8px;
             font-family: 'Determination Mono', 'Courier New', monospace;
+            font-size: 22px;
+            margin-bottom: 12px;
             letter-spacing: 1px;
+            border-bottom: 2px solid #ffffff;
+            padding-bottom: 6px;
+            display: inline-block;
         }
 
-        /* TEXTO AMARILLO */
+        /* TEXTO AMARILLO (como en Undertale) */
         .yellow-text {
             color: #ffff00;
             font-family: 'Determination Mono', 'Courier New', monospace;
@@ -77,6 +76,22 @@
             color: #ff0000;
             font-family: 'Determination Mono', 'Courier New', monospace;
             text-transform: uppercase;
+        }
+
+        /* ===== TRIÁNGULO INDICADOR (parpadeante) ===== */
+        .indicator {
+            position: absolute;
+            bottom: 8px;
+            right: 14px;
+            color: #ffffff;
+            font-size: 26px;
+            font-family: 'Determination Mono', 'Courier New', monospace;
+            animation: blink 0.9s step-end infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
         }
 
         /* ===== EFECTO DE TEMBLOR ===== */
@@ -98,23 +113,7 @@
             animation: shake 0.15s infinite;
         }
 
-        /* ===== TRIÁNGULO INDICADOR (como en Undertale) ===== */
-        .indicator {
-            position: absolute;
-            bottom: 8px;
-            right: 12px;
-            color: #ffffff;
-            font-size: 24px;
-            font-family: 'Determination Mono', 'Courier New', monospace;
-            animation: blink 0.8s step-end infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        /* ===== HINT (inferior derecho) ===== */
+        /* ===== HINT ===== */
         .hint {
             position: fixed;
             bottom: 20px;
@@ -128,10 +127,10 @@
 </head>
 <body>
 
-    <!-- ===== CUADRO DE DIÁLOGO ESTILO UNDERTALE ===== -->
-    <div id="dialogue-box" class="dialogue-box">
+    <!-- ===== CUADRO DE DIÁLOGO ===== -->
+    <div id="dialogue-wrapper" class="dialogue-wrapper">
         <div id="speaker-name" class="speaker-name"></div>
-        <p id="dialogue-text"></p>
+        <p id="dialogue-text" class="dialogue-text"></p>
         <div class="indicator">▼</div>
     </div>
 
@@ -139,7 +138,7 @@
 
     <script>
         // ============================================================
-        // BANCO DE DIÁLOGOS DE UNDERTALE
+        // DIÁLOGOS DE UNDERTALE
         // ============================================================
         const undertaleQuotes = [
             "* Mantente determinado.",
@@ -160,7 +159,7 @@
         ];
 
         // ============================================================
-        // VARIABLES DE CONTROL
+        // CONTROL
         // ============================================================
         let pressCount = 0;
         let isTyping = false;
@@ -168,9 +167,10 @@
         let currentText = "";
         const dialogueElement = document.getElementById('dialogue-text');
         const nameElement = document.getElementById('speaker-name');
+        const wrapper = document.getElementById('dialogue-wrapper');
 
         // ============================================================
-        // EFECTO DE ESCRITURA (MÁQUINA DE ESCRIBIR)
+        // MÁQUINA DE ESCRIBIR
         // ============================================================
         function typeWriter(text, speed = 40, callback = null) {
             if (typeTimeout) {
@@ -185,7 +185,6 @@
 
             function type() {
                 if (i < text.length) {
-                    // Manejar etiquetas HTML (como <span>)
                     if (text[i] === '<') {
                         let closingIndex = text.indexOf('>', i);
                         if (closingIndex !== -1) {
@@ -211,9 +210,6 @@
             type();
         }
 
-        // ============================================================
-        // SALTAR DIÁLOGO (si se presiona L mientras escribe)
-        // ============================================================
         function skipDialogue() {
             if (typeTimeout) {
                 clearTimeout(typeTimeout);
@@ -226,16 +222,36 @@
         }
 
         // ============================================================
-        // FUNCIÓN PARA CERRAR LA PÁGINA LITERALMENTE
+        // CIERRE SEGURO
         // ============================================================
-        function closePageLiterally() {
-            window.close();
-            try {
-                window.location.href = 'about:blank';
-            } catch (_) {}
-            setTimeout(() => {
-                while (true) {}
-            }, 50);
+        function closePageSafely() {
+            // Intentar cerrar
+            try { window.close(); } catch (e) {}
+            try { window.location.href = 'about:blank'; } catch (e) {}
+            
+            // Si no funciona, mostrar mensaje
+            document.body.innerHTML = `
+                <div style="
+                    background: #000;
+                    color: #fff;
+                    font-family: 'Determination Mono', monospace;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    font-size: 24px;
+                    text-align: center;
+                    padding: 20px;
+                ">
+                    <div>
+                        <p>✦ ✦ ✦</p>
+                        <p>EL JUEGO HA TERMINADO</p>
+                        <p style="font-size: 18px; color: #666; margin-top: 20px;">
+                            Cierra esta pestaña (Ctrl+W)
+                        </p>
+                    </div>
+                </div>
+            `;
         }
 
         // ============================================================
@@ -244,7 +260,6 @@
         document.addEventListener('keydown', (event) => {
             if (event.key !== 'l' && event.key !== 'L') return;
 
-            // Si está escribiendo, saltar el diálogo (excepto en el evento 55)
             if (isTyping) {
                 if (pressCount !== 55) {
                     skipDialogue();
@@ -255,7 +270,6 @@
 
             pressCount++;
 
-            // --- DIÁLOGOS ALEATORIOS (clics 1-49) ---
             if (pressCount < 50) {
                 const randomIndex = Math.floor(Math.random() * undertaleQuotes.length);
                 nameElement.textContent = "";
@@ -263,7 +277,6 @@
                 return;
             }
 
-            // --- SECUENCIA ESPECIAL (a partir del clic 50) ---
             if (pressCount === 50) {
                 nameElement.textContent = "";
                 typeWriter("* ...", 40);
@@ -282,32 +295,23 @@
                 return;
             }
 
-            // --- EVENTO 55: TEXTO ROJO + TEMBLOR + CIERRE ---
             if (pressCount === 55) {
-                // Activar temblor
-                document.getElementById('dialogue-box').classList.add('shaking');
-                
-                // Escribir el texto rojo
+                wrapper.classList.add('shaking');
                 const redText = '<span class="red-text">* YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</span>';
                 typeWriter(redText, 15, () => {
-                    // Esperar 0.5 segundos y cerrar
                     setTimeout(() => {
-                        document.getElementById('dialogue-box').classList.remove('shaking');
-                        closePageLiterally();
+                        wrapper.classList.remove('shaking');
+                        closePageSafely();
                     }, 500);
                 });
                 return;
             }
-
-            // Si pasamos de 55, no hacemos nada (ya debería haber cerrado)
         });
 
         // ============================================================
-        // INICIALIZACIÓN
+        // INICIO
         // ============================================================
-        console.log('Undertale Easter Egg cargado. Presiona L para comenzar.');
-        
-        // Diálogo inicial
+        console.log('Undertale Easter Egg - Estilo Demirramon');
         setTimeout(() => {
             typeWriter("* Presiona la tecla L para comenzar...", 40);
         }, 300);
